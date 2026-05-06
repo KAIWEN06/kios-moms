@@ -157,7 +157,7 @@ const PesananAdmin = ({ cart = {}, menu = [], updateQty, clearCart, pindahkanKeP
                 <div className="bg-[#002366] p-6 rounded-3xl text-white shadow-xl">
                   <div className="flex justify-between items-baseline">
                     <span className="font-bold">Total Bayar</span>
-                    <span className="text-3xl font-black text-[#FF8C00]">Rp {totalHarga.toLocaleString()}</span>
+                    <span className="text-2xl font-black text-[#FF8C00]">Rp {totalHarga.toLocaleString()}</span>
                   </div>
                 </div>
 
