@@ -58,25 +58,42 @@ function App() {
   const clearCart = () => setCart({});
 
   // FUNGSI UPDATE STOK: Menghubungkan Kelola Menu ke Buat Pesanan
-  const updateStokMenu = async (id, val) => {
-    try {
-      // 1. Update status di database Supabase
-      const { error } = await supabase
-        .from('menu')
-        .update({ stok: val })
-        .eq('id', id);
+  const updateStokMenu = async (id, status) => {
 
-      if (error) throw error;
+  try {
 
-      // 2. PANGGIL fetchMenu agar halaman 'Buat Pesanan' mendapatkan data terbaru
-      // Tanpa ini, status di halaman Buat Pesanan tidak akan berubah otomatis
-      await fetchMenu(); 
-      
-    } catch (error) {
-      console.error("Gagal update stok:", error.message);
-      alert("Gagal memperbarui status stok ke database.");
+    console.log("UPDATE STOK:", id, status);
+
+    const { data, error } = await supabase
+      .from('menu')
+      .update({
+        stok: status
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+
+      console.error(error);
+      return;
+
     }
-  };
+
+    console.log("BERHASIL UPDATE:", data);
+
+    // REFRESH MENU
+    await fetchMenu();
+
+  } catch (error) {
+
+    console.error(
+      'Gagal update stok:',
+      error.message
+    );
+
+  }
+
+};
 
   const pindahkanKeProses = (meja, email, payMethod, totalHarga, cartItems) => {
     const mejaNum = parseInt(meja);

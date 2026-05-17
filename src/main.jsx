@@ -3,12 +3,21 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 import { BrowserRouter } from 'react-router-dom'; // Wajib di-import
+import { Toaster } from 'react-hot-toast';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* BrowserRouter HARUS membungkus App di sini */}
     <BrowserRouter>
-      <App />
+      <>
+  <App />
+
+  <Toaster
+    position="top-right"
+    font
+    reverseOrder={false}
+  />
+</>
     </BrowserRouter>
   </React.StrictMode>,
 );
