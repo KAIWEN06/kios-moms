@@ -10,6 +10,7 @@ const HeaderAdmin = () => {
     { name: 'Proses Pesanan', path: '/adminProses-pesanan' },
     { name: 'Riwayat Pesanan', path: '/riwayat-pesanan' },
     { name: 'Kelola Menu', path: '/kelola-menu' },
+    { name: 'Laporan', path: '/Laporan' },
   ];
 
   return (
