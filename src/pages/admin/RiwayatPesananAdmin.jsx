@@ -7,6 +7,43 @@ const RiwayatPesanan = () => {
   const [openIndex, setOpenIndex] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // PARSE ITEMS
+  const parseItems = (items) => {
+
+    // JIKA SUDAH ARRAY
+    if (Array.isArray(items)) {
+      return items;
+    }
+
+    // JIKA STRING JSON
+    if (typeof items === 'string') {
+
+      try {
+
+        const parsed = JSON.parse(items);
+
+        return Array.isArray(parsed)
+          ? parsed
+          : [];
+
+      } catch (error) {
+
+        console.error(
+          'Gagal parse items:',
+          error
+        );
+
+        return [];
+
+      }
+
+    }
+
+    // JIKA NULL / UNDEFINED
+    return [];
+
+  };
+
   // FETCH HISTORY
   const fetchHistory = async () => {
 
@@ -49,7 +86,9 @@ const RiwayatPesanan = () => {
   const toggleDetail = (idx) => {
 
     setOpenIndex(
-      openIndex === idx ? null : idx
+      openIndex === idx
+        ? null
+        : idx
     );
 
   };
@@ -98,9 +137,7 @@ const RiwayatPesanan = () => {
         historyOrders.map((o, idx) => {
 
           // ITEMS
-          const parsedItems = Array.isArray(o.items)
-            ? o.items
-            : [];
+          const parsedItems = parseItems(o.items);
 
           return (
 
@@ -160,34 +197,70 @@ const RiwayatPesanan = () => {
                 }`}
               >
 
+                {/* ITEMS */}
                 <ul className="list-disc list-inside space-y-2 text-gray-600">
 
-                  {parsedItems.map((i, iIdx) => (
+                  {parsedItems.length > 0 ? (
 
-                    <li
-                      key={iIdx}
-                      className="text-sm"
-                    >
+                    parsedItems.map((i, iIdx) => (
 
-                      <span className="font-semibold text-gray-800">
+                      <li
+                        key={iIdx}
+                        className="text-sm"
+                      >
 
-                        {i.nama}
+                        <span className="font-semibold text-gray-800">
 
-                      </span>{' '}
+                          {i.nama}
 
-                      x {i.qty}
+                        </span>{' '}
 
-                      <span className="ml-2 text-gray-500">
+                        x {i.qty}
 
-                        - Rp {Number(i.subtotal).toLocaleString()}
+                        <span className="ml-2 text-gray-500">
 
-                      </span>
+                          - Rp {Number(i.subtotal).toLocaleString()}
 
-                    </li>
+                        </span>
 
-                  ))}
+                      </li>
+
+                    ))
+
+                  ) : (
+
+                    <p className="text-sm text-gray-400 italic">
+
+                      Detail item tidak tersedia
+
+                    </p>
+
+                  )}
 
                 </ul>
+
+                {/* METODE PEMBAYARAN */}
+                <div className="mt-[15px] flex justify-between items-center">
+
+                  <span className="text-sm text-gray-500 font-semibold">
+
+                    Metode Pembayaran
+
+                  </span>
+
+                  <span
+                    className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
+                      o.metode_pembayaran === 'QRIS'
+                        ? 'bg-blue-500'
+                        : 'bg-green-500'
+                    }`}
+                  >
+
+                    {o.metode_pembayaran}
+
+                  </span>
+
+                </div>
 
                 {/* STATUS */}
                 <p className="mt-[15px] font-bold text-green-600 tracking-wide text-sm">
