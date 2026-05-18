@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, {
+  useState
+} from 'react';
+
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
@@ -8,19 +11,40 @@ const KelolaMenuAdmin = ({
   updateStokMenu
 }) => {
 
+  // FORM
   const [form, setForm] = useState({
     nama: '',
     harga: '',
     desc: ''
   });
 
+  // FILE
   const [file, setFile] = useState(null);
+
+  // LOADING
   const [loading, setLoading] = useState(false);
+
+  // TAB
+  const [activeTab, setActiveTab] =
+    useState('aktif');
+
+  // PAGINATION
+  const [currentPage, setCurrentPage] =
+    useState(1);
+
+  // EDIT
+  const [editingId, setEditingId] =
+    useState(null);
+
+  // DELETE
+  const [deleteMenu, setDeleteMenu] =
+    useState(null);
 
   // HANDLE FILE
   const handleFileChange = (e) => {
 
-    const selectedFile = e.target.files[0];
+    const selectedFile =
+      e.target.files[0];
 
     if (selectedFile) {
       setFile(selectedFile);
@@ -28,13 +52,141 @@ const KelolaMenuAdmin = ({
 
   };
 
+  // SAVE EDIT
+  const saveEdit = async (menuId) => {
+
+    const nama =
+      document.getElementById(
+        `nama-${menuId}`
+      ).value;
+
+    const harga =
+      document.getElementById(
+        `harga-${menuId}`
+      ).value;
+
+    const desc =
+      document.getElementById(
+        `desc-${menuId}`
+      ).value;
+
+    // VALIDASI
+    if (Number(harga) <= 0) {
+
+      toast.error(
+        'Harga tidak boleh 0 atau minus!'
+      );
+
+      return;
+
+    }
+
+    try {
+
+      const { error } =
+        await supabase
+          .from('menu')
+          .update({
+            nama,
+            harga,
+            deskripsi: desc
+          })
+          .eq('id', menuId);
+
+      if (error) throw error;
+
+      toast.success(
+        'Menu berhasil diupdate!',
+        {
+          style: {
+            borderRadius: '18px',
+            padding: '16px',
+            fontWeight: '700'
+          }
+        }
+      );
+
+      setEditingId(null);
+
+      if (fetchMenu) {
+        await fetchMenu();
+      }
+
+    } catch (error) {
+
+      toast.error(
+        'Gagal update menu'
+      );
+
+    }
+
+  };
+
+  // HAPUS MENU
+  const hapusMenu = async (id) => {
+
+    try {
+
+      const { error } =
+        await supabase
+          .from('menu')
+          .delete()
+          .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(
+        'Menu berhasil dihapus!',
+        {
+          style: {
+            borderRadius: '18px',
+            padding: '16px',
+            fontWeight: '700'
+          }
+        }
+      );
+
+      setDeleteMenu(null);
+
+      if (fetchMenu) {
+        await fetchMenu();
+      }
+
+    } catch (error) {
+
+      toast.error(
+        'Gagal menghapus menu'
+      );
+
+    }
+
+  };
+
   // UPLOAD MENU
   const handleUpload = async () => {
 
-    if (!form.nama || !form.harga || !file) {
+    // VALIDASI
+    if (
+      !form.nama ||
+      !form.harga ||
+      !file
+    ) {
 
       toast.error(
         'Lengkapi data menu!'
+      );
+
+      return;
+
+    }
+
+    // VALIDASI HARGA
+    if (
+      Number(form.harga) <= 0
+    ) {
+
+      toast.error(
+        'Harga tidak boleh 0 atau minus!'
       );
 
       return;
@@ -45,42 +197,57 @@ const KelolaMenuAdmin = ({
 
     try {
 
-      // NAMA FILE
-      const fileName = `${Date.now()}_${file.name}`;
+      // FILE NAME
+      const fileName =
+        `${Date.now()}_${file.name}`;
 
-      // UPLOAD STORAGE
-      const { error: uploadError } = await supabase
-        .storage
-        .from('menu-images')
-        .upload(fileName, file);
+      // UPLOAD
+      const { error: uploadError } =
+        await supabase
+          .storage
+          .from('menu-images')
+          .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError)
+        throw uploadError;
 
-      // URL GAMBAR
-      const { data: urlData } = supabase
-        .storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
+      // URL
+      const { data: urlData } =
+        supabase.storage
+          .from('menu-images')
+          .getPublicUrl(fileName);
 
-      // INSERT MENU
-      const { error } = await supabase
-        .from('menu')
-        .insert([
-          {
-            nama: form.nama,
-            harga: parseInt(form.harga),
-            stok: 'ada',
-            img: urlData.publicUrl
-          }
-        ]);
+      // INSERT
+      const { error } =
+        await supabase
+          .from('menu')
+          .insert([
+            {
+              nama: form.nama,
+              harga: parseInt(
+                form.harga
+              ),
+              deskripsi: form.desc,
+              stok: 'ada',
+              status: 'aktif',
+              img: urlData.publicUrl
+            }
+          ]);
 
       if (error) throw error;
 
       toast.success(
-        'Menu berhasil ditambahkan!'
+        'Menu berhasil ditambahkan!',
+        {
+          style: {
+            borderRadius: '18px',
+            padding: '16px',
+            fontWeight: '700'
+          }
+        }
       );
 
-      // RESET FORM
+      // RESET
       setForm({
         nama: '',
         harga: '',
@@ -89,7 +256,17 @@ const KelolaMenuAdmin = ({
 
       setFile(null);
 
-      // REFRESH MENU
+      // RESET FILE
+      const fileInput =
+        document.getElementById(
+          'upload-file'
+        );
+
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // REFRESH
       if (fetchMenu) {
         await fetchMenu();
       }
@@ -109,6 +286,33 @@ const KelolaMenuAdmin = ({
     }
 
   };
+
+  // FILTER
+  const filteredMenu =
+    menu.filter((m) =>
+      activeTab === 'aktif'
+        ? m.stok !== 'nonaktif'
+        : m.stok === 'nonaktif'
+    );
+
+  // PAGINATION
+  const itemPerPage = 8;
+
+  const totalPage =
+    Math.ceil(
+      filteredMenu.length /
+      itemPerPage
+    );
+
+  const startIndex =
+    (currentPage - 1) *
+    itemPerPage;
+
+  const visibleMenu =
+    filteredMenu.slice(
+      startIndex,
+      startIndex + itemPerPage
+    );
 
   return (
 
@@ -177,6 +381,7 @@ const KelolaMenuAdmin = ({
           <div className="md:col-span-2">
 
             <input
+              id="upload-file"
               type="file"
               onChange={handleFileChange}
               className="w-full p-3 border-2 border-dashed rounded-xl text-xs"
@@ -201,16 +406,47 @@ const KelolaMenuAdmin = ({
 
       </div>
 
-      {/* DAFTAR MENU */}
-      <h3 className="font-bold text-xl mb-6">
+      {/* TAB */}
+      <div className="flex gap-4 mb-8">
 
-        Daftar Katalog & Status Stok
+        <button
+          onClick={() => {
+            setActiveTab('aktif');
+            setCurrentPage(1);
+          }}
+          className={`px-6 py-3 rounded-2xl font-black transition-all ${
+            activeTab === 'aktif'
+              ? 'bg-[#002366] text-white'
+              : 'bg-white text-gray-500'
+          }`}
+        >
 
-      </h3>
+          Menu Aktif
 
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('nonaktif');
+            setCurrentPage(1);
+          }}
+          className={`px-6 py-3 rounded-2xl font-black transition-all ${
+            activeTab === 'nonaktif'
+              ? 'bg-red-500 text-white'
+              : 'bg-white text-gray-500'
+          }`}
+        >
+
+          Menu Nonaktif
+
+        </button>
+
+      </div>
+
+      {/* MENU */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
 
-        {menu && menu.map((m) => (
+        {visibleMenu.map((m) => (
 
           <div
             key={m.id}
@@ -244,14 +480,16 @@ const KelolaMenuAdmin = ({
               {/* HARGA */}
               <p className="text-[#FF8C00] font-black text-xs mb-3">
 
-                Rp {Number(m.harga).toLocaleString()}
+                Rp {Number(
+                  m.harga
+                ).toLocaleString()}
 
               </p>
 
-              {/* STATUS BADGE */}
-              {m.stok === 'kosong' && (
+              {/* STATUS */}
+              <div className="mb-3">
 
-                <div className="mb-3">
+                {m.stok === 'kosong' && (
 
                   <span className="bg-red-100 text-red-500 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wide">
 
@@ -259,34 +497,89 @@ const KelolaMenuAdmin = ({
 
                   </span>
 
-                </div>
+                )}
 
-              )}
+                {m.stok === 'nonaktif' && (
+
+                  <span className="bg-gray-200 text-gray-500 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wide">
+
+                    Nonaktif
+
+                  </span>
+
+                )}
+
+              </div>
 
             </div>
 
-            {/* DROPDOWN */}
+            {/* STATUS */}
             <select
               className="w-full p-2 bg-gray-50 border rounded-lg text-xs font-bold outline-none cursor-pointer hover:border-[#FF8C00] transition-colors"
               value={m.stok || 'ada'}
               onChange={async (e) => {
 
-                const newStatus = e.target.value;
+                const newStatus =
+                  e.target.value;
 
-                console.log(
-                  'UBAH STOK:',
-                  m.id,
-                  newStatus
-                );
-
+                // UPDATE STATUS
                 await updateStokMenu(
                   m.id,
                   newStatus
                 );
 
-                // REFRESH MENU
+                // REFRESH
                 if (fetchMenu) {
                   await fetchMenu();
+                }
+
+                // PINDAH OTOMATIS
+                if (
+                  newStatus ===
+                  'nonaktif'
+                ) {
+
+                  toast.success(
+                    'Menu dipindahkan ke nonaktif',
+                    {
+                      style: {
+                        borderRadius: '18px',
+                        padding: '16px',
+                        fontWeight: '700'
+                      }
+                    }
+                  );
+
+                  setActiveTab(
+                    'nonaktif'
+                  );
+
+                  setCurrentPage(1);
+
+                }
+
+                // KEMBALI AKTIF
+                if (
+                  newStatus === 'ada'
+                ) {
+
+                  toast.success(
+                    'Menu diaktifkan kembali',
+                    {
+                      style: {
+                        borderRadius: '18px',
+                        padding: '16px',
+                        fontWeight: '700'
+                      }
+                    }
+                  );
+
+                  setActiveTab(
+                    'aktif'
+                  );
+
+                  setCurrentPage(1);
+
                 }
 
               }}
@@ -304,13 +597,236 @@ const KelolaMenuAdmin = ({
 
               </option>
 
+              <option value="nonaktif">
+
+                Nonaktif
+
+              </option>
+
             </select>
+
+            {/* ACTION */}
+            <div className="flex gap-2 mt-3">
+
+              <button
+                onClick={() =>
+                  setEditingId(m.id)
+                }
+                className="flex-1 bg-[#002366] text-white py-2 rounded-xl text-xs font-black"
+              >
+
+                Edit
+
+              </button>
+
+              {activeTab ===
+                'nonaktif' && (
+
+                <button
+                  onClick={() =>
+                    setDeleteMenu(m)
+                  }
+                  className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-black"
+                >
+
+                  Hapus
+
+                </button>
+
+              )}
+
+            </div>
 
           </div>
 
         ))}
 
       </div>
+
+      {/* PAGINATION */}
+      <div className="flex items-center justify-center gap-4 mt-10">
+
+        <button
+          disabled={currentPage === 1}
+          onClick={() =>
+            setCurrentPage(
+              currentPage - 1
+            )
+          }
+          className={`px-5 py-3 rounded-2xl font-bold ${
+            currentPage === 1
+              ? 'bg-gray-100 text-gray-300'
+              : 'bg-[#002366] text-white'
+          }`}
+        >
+
+          Prev
+
+        </button>
+
+        <div className="font-black text-[#002366]">
+
+          {currentPage} / {totalPage}
+
+        </div>
+
+        <button
+          disabled={
+            currentPage === totalPage
+          }
+          onClick={() =>
+            setCurrentPage(
+              currentPage + 1
+            )
+          }
+          className={`px-5 py-3 rounded-2xl font-bold ${
+            currentPage === totalPage
+              ? 'bg-gray-100 text-gray-300'
+              : 'bg-[#FF8C00] text-white'
+          }`}
+        >
+
+          Next
+
+        </button>
+
+      </div>
+
+      {/* POPUP EDIT */}
+      {editingId && (
+
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+
+          <div className="bg-white w-full max-w-lg rounded-[35px] p-8">
+
+            {menu
+              .filter(
+                (x) =>
+                  x.id === editingId
+              )
+              .map((m) => (
+
+                <div key={m.id}>
+
+                  <h2 className="text-2xl font-black text-[#002366] mb-6">
+
+                    Edit Menu
+
+                  </h2>
+
+                  <div className="space-y-4">
+
+                    <input
+                      id={`nama-${m.id}`}
+                      defaultValue={m.nama}
+                      className="w-full p-4 rounded-2xl border"
+                    />
+
+                    <input
+                      id={`harga-${m.id}`}
+                      type="number"
+                      defaultValue={m.harga}
+                      className="w-full p-4 rounded-2xl border"
+                    />
+
+                    <textarea
+                      id={`desc-${m.id}`}
+                      defaultValue={
+                        m.deskripsi
+                      }
+                      className="w-full p-4 rounded-2xl border h-28"
+                    />
+
+                  </div>
+
+                  <div className="flex gap-4 mt-6">
+
+                    <button
+                      onClick={() =>
+                        saveEdit(m.id)
+                      }
+                      className="flex-1 bg-[#002366] text-white py-4 rounded-2xl font-black"
+                    >
+
+                      Simpan
+
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setEditingId(null)
+                      }
+                      className="flex-1 bg-gray-100 py-4 rounded-2xl font-black"
+                    >
+
+                      Batal
+
+                    </button>
+
+                  </div>
+
+                </div>
+
+              ))}
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* DELETE POPUP */}
+      {deleteMenu && (
+
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+
+          <div className="bg-white w-full max-w-md rounded-[35px] p-8 text-center">
+
+            <h2 className="text-2xl font-black text-red-500 mb-4">
+
+              Konfirmasi Hapus
+
+            </h2>
+
+            <p className="text-gray-500 mb-8">
+
+              Pastikan menu belum pernah di pesan.
+
+            </p>
+
+            <div className="flex gap-4">
+
+              <button
+                onClick={() =>
+                  hapusMenu(
+                    deleteMenu.id
+                  )
+                }
+                className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-black"
+              >
+
+                Hapus
+
+              </button>
+
+              <button
+                onClick={() =>
+                  setDeleteMenu(null)
+                }
+                className="flex-1 bg-gray-100 py-4 rounded-2xl font-black"
+              >
+
+                Batal
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
 

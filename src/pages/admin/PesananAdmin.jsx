@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "../../lib/supabaseClient";
 import toast from 'react-hot-toast';
@@ -16,7 +16,73 @@ const PesananAdmin = ({
   const [payMethod, setPayMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
-  // ITEM YANG ADA DI CART
+  // POPUP MEJA
+  const [showMejaPopup, setShowMejaPopup] = useState(false);
+
+  // PAGINATION
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // TOTAL PAGE
+  const [maxPage, setMaxPage] = useState(1);
+
+  // MEJA TERPAKAI
+  const [usedTables, setUsedTables] = useState([]);
+
+  // FETCH MEJA DIPAKAI
+  const fetchUsedTables = async () => {
+
+    const { data } = await supabase
+      .from('history_pesanan')
+      .select('nomor_meja')
+      .eq('status', 'Diproses');
+
+    const mejaDipakai =
+      data?.map((item) => item.nomor_meja) || [];
+
+    setUsedTables(mejaDipakai);
+
+    // AUTO PINDAH KE PAGE YANG MASIH ADA MEJA
+    let halamanKosong = 1;
+
+    for (let page = 1; page <= 10; page++) {
+
+      const start = (page - 1) * 20 + 1;
+
+      const semuaTerpakai =
+        Array.from(
+          { length: 20 },
+          (_, i) => start + i
+        ).every((nomor) =>
+          mejaDipakai.includes(nomor)
+        );
+
+      if (!semuaTerpakai) {
+
+        halamanKosong = page;
+
+        break;
+
+      }
+
+    }
+
+    setCurrentPage(halamanKosong);
+
+    // TOTAL PAGE
+    const totalPage =
+      Math.ceil(100 / 20);
+
+    setMaxPage(totalPage);
+
+  };
+
+  useEffect(() => {
+
+    fetchUsedTables();
+
+  }, []);
+
+  // ITEM CART
   const cartItems = Object.keys(cart).filter(
     (id) => cart[id] > 0
   );
@@ -31,35 +97,22 @@ const PesananAdmin = ({
     );
 
     if (m) {
-      totalHarga += Number(m.harga) * Number(cart[id]);
+
+      totalHarga +=
+        Number(m.harga) *
+        Number(cart[id]);
+
     }
 
   });
 
-  // HANDLE INPUT MEJA
-  const handleMejaChange = (e) => {
-
-    const value = e.target.value;
-
-    if (value === '') {
-      setMeja('');
-      return;
-    }
-
-    const num = parseInt(value);
-
-    if (num >= 1 && num <= 100) {
-      setMeja(num);
-    }
-
-  };
-
+  // GENERATE KODE
   const generateKodePesanan = () => {
 
-  return `INV-${crypto
-    .randomUUID()
-    .slice(0, 8)
-    .toUpperCase()}`;
+    return `INV-${crypto
+      .randomUUID()
+      .slice(0, 8)
+      .toUpperCase()}`;
 
   };
 
@@ -68,36 +121,36 @@ const PesananAdmin = ({
 
     if (!meja || cartItems.length === 0) {
 
-  toast.error(
-    'Pilih menu dan isi nomor meja'
-  );
+      toast.error(
+        'Pilih menu dan isi nomor meja'
+      );
 
-  return;
+      return;
 
-}
+    }
 
-// CEK MEJA SUDAH DIPAKAI
-const { data: existingMeja } = await supabase
-  .from('history_pesanan')
-  .select('id')
-  .eq('nomor_meja', Number(meja))
-  .eq('status', 'Diproses');
+    // CEK MEJA
+    const { data: existingMeja } = await supabase
+      .from('history_pesanan')
+      .select('id')
+      .eq('nomor_meja', Number(meja))
+      .eq('status', 'Diproses');
 
-if (existingMeja.length > 0) {
+    if (existingMeja.length > 0) {
 
-  toast.error(
-    `Meja ${meja} sedang digunakan!`
-  );
+      toast.error(
+        `Meja ${meja} sedang digunakan!`
+      );
 
-  return;
+      return;
 
-}
+    }
 
     setLoading(true);
 
     try {
 
-      // BENTUK ITEMS JSON
+      // ITEMS
       const itemsData = cartItems.map((id) => {
 
         const m = menu.find(
@@ -107,60 +160,44 @@ if (existingMeja.length > 0) {
         if (!m) return null;
 
         return {
+
           nama: m.nama,
           harga: Number(m.harga),
           qty: Number(cart[id]),
-          subtotal: Number(m.harga) * Number(cart[id])
+          subtotal:
+            Number(m.harga) *
+            Number(cart[id])
+
         };
 
       }).filter(Boolean);
 
-      console.log("ITEMS:", itemsData);
-
-      // INSERT KE SUPABASE
-
-      const kodePesanan = generateKodePesanan();
-
-      const { data, error } = await supabase
+      // INSERT
+      const { error } = await supabase
         .from('history_pesanan')
         .insert([
           {
-            kode_pesanan: kodePesanan,
-            nomor_meja: Number(meja),
-            total_harga: Number(totalHarga),
-            metode_pembayaran: payMethod,
+            kode_pesanan:
+              generateKodePesanan(),
+            nomor_meja:
+              Number(meja),
+            total_harga:
+              Number(totalHarga),
+            metode_pembayaran:
+              payMethod,
             status: 'Diproses',
             items: itemsData
           }
-        ])
-        .select();
+        ]);
 
-      if (error) {
-        console.log(error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("BERHASIL:", data);
-
-      // TOAST SUCCESS
       toast.success(
-        `Pesanan meja ${meja} berhasil diproses!`,
-        {
-          style: {
-            fontSize: '16px',
-            fontWeight: '700',
-            padding: '16px',
-            borderRadius: '20px',
-            background: '#ffffff',
-            color: '#002366',
-          },
-        }
+        `Pesanan meja ${meja} berhasil diproses!`
       );
 
-      // CLEAR CART
       clearCart();
 
-      // PINDAH HALAMAN
       navigate('/adminProses-pesanan');
 
     } catch (error) {
@@ -168,7 +205,8 @@ if (existingMeja.length > 0) {
       console.log(error);
 
       toast.error(
-        error.message || 'Gagal menyimpan pesanan'
+        error.message ||
+        'Gagal menyimpan pesanan'
       );
 
     } finally {
@@ -180,18 +218,23 @@ if (existingMeja.length > 0) {
   };
 
   return (
+
     <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
 
       <div className="max-w-6xl mx-auto">
 
-        {/* BACK BUTTON */}
+        {/* BACK */}
         <button
-          onClick={() => navigate('/buat-pesanan')}
+          onClick={() =>
+            navigate('/buat-pesanan')
+          }
           className="group mb-6 flex items-center gap-2 text-gray-500 hover:text-[#002366] transition-colors font-semibold"
         >
 
           <span className="bg-white p-2 rounded-full shadow-sm group-hover:bg-[#002366] group-hover:text-white transition-all text-lg">
+
             ←
+
           </span>
 
           Kembali Pilih Menu
@@ -204,7 +247,9 @@ if (existingMeja.length > 0) {
           <div className="lg:col-span-8 space-y-4">
 
             <h3 className="font-black text-2xl text-gray-800 mb-2">
+
               Ringkasan <span className="text-[#FF8C00]">Menu</span>
+
             </h3>
 
             {cartItems.length === 0 ? (
@@ -212,7 +257,9 @@ if (existingMeja.length > 0) {
               <div className="bg-white p-20 rounded-3xl text-center border-2 border-dashed border-gray-200">
 
                 <p className="text-gray-400 italic">
+
                   Belum ada menu yang dipilih.
+
                 </p>
 
               </div>
@@ -224,12 +271,16 @@ if (existingMeja.length > 0) {
                 const qty = cart[id];
 
                 const m = menu.find(
-                  (item) => Number(item.id) === Number(id)
+                  (item) =>
+                    Number(item.id) ===
+                    Number(id)
                 );
 
                 if (!m) return null;
 
-                const sub = Number(m.harga) * Number(qty);
+                const sub =
+                  Number(m.harga) *
+                  Number(qty);
 
                 return (
 
@@ -249,11 +300,15 @@ if (existingMeja.length > 0) {
                       <div>
 
                         <h5 className="font-bold text-gray-800">
+
                           {m.nama}
+
                         </h5>
 
                         <p className="text-xs text-[#FF8C00] font-bold">
+
                           Rp {Number(m.harga).toLocaleString()}
+
                         </p>
 
                       </div>
@@ -265,21 +320,31 @@ if (existingMeja.length > 0) {
                       <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border">
 
                         <button
-                          onClick={() => updateQty(m.id, -1)}
+                          onClick={() =>
+                            updateQty(m.id, -1)
+                          }
                           className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#002366]"
                         >
+
                           -
+
                         </button>
 
                         <span className="font-black text-sm w-4 text-center">
+
                           {qty}
+
                         </span>
 
                         <button
-                          onClick={() => updateQty(m.id, 1)}
+                          onClick={() =>
+                            updateQty(m.id, 1)
+                          }
                           className="w-8 h-8 flex items-center justify-center bg-[#002366] text-white rounded-lg shadow-sm font-bold"
                         >
+
                           +
+
                         </button>
 
                       </div>
@@ -287,7 +352,9 @@ if (existingMeja.length > 0) {
                       <div className="text-right min-w-[100px]">
 
                         <strong className="text-lg text-[#002366]">
+
                           Rp {sub.toLocaleString()}
+
                         </strong>
 
                       </div>
@@ -310,25 +377,34 @@ if (existingMeja.length > 0) {
             <div className="bg-white p-8 rounded-[35px] shadow-2xl border border-gray-50">
 
               <h3 className="font-black text-xl text-gray-800 mb-6 border-b pb-4">
+
                 Konfirmasi <span className="text-[#FF8C00]">Meja</span>
+
               </h3>
 
               <div className="space-y-6">
 
-                {/* NOMOR MEJA */}
+                {/* PILIH MEJA */}
                 <div>
 
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-                    Nomor Meja (1-100)
+
+                    Nomor Meja
+
                   </label>
 
-                  <input
-                    type="number"
-                    value={meja}
-                    onChange={handleMejaChange}
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-2xl text-center text-[#002366] focus:border-[#FF8C00] outline-none transition-all"
-                    placeholder="0"
-                  />
+                  <button
+                    onClick={() =>
+                      setShowMejaPopup(true)
+                    }
+                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-2xl text-center text-[#002366] hover:border-[#FF8C00] transition-all"
+                  >
+
+                    {meja
+                      ? `MEJA ${meja}`
+                      : 'Pilih Meja'}
+
+                  </button>
 
                 </div>
 
@@ -336,21 +412,31 @@ if (existingMeja.length > 0) {
                 <div>
 
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+
                     Metode Pembayaran
+
                   </label>
 
                   <select
                     value={payMethod}
-                    onChange={(e) => setPayMethod(e.target.value)}
+                    onChange={(e) =>
+                      setPayMethod(
+                        e.target.value
+                      )
+                    }
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-[#002366] outline-none cursor-pointer"
                   >
 
                     <option value="Tunai">
+
                       Tunai / Cash
+
                     </option>
 
                     <option value="QRIS">
+
                       QRIS / Transfer
+
                     </option>
 
                   </select>
@@ -363,11 +449,15 @@ if (existingMeja.length > 0) {
                   <div className="flex justify-between items-baseline">
 
                     <span className="font-bold">
+
                       Total Bayar
+
                     </span>
 
                     <span className="text-2xl font-black text-[#FF8C00]">
+
                       Rp {totalHarga.toLocaleString()}
+
                     </span>
 
                   </div>
@@ -383,7 +473,9 @@ if (existingMeja.length > 0) {
                     loading
                   }
                   className={`w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg transition-all duration-300 ${
-                    !meja || cartItems.length === 0 || loading
+                    !meja ||
+                    cartItems.length === 0 ||
+                    loading
                       ? 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                       : 'bg-[#FF8C00] text-white hover:bg-orange-600 hover:-translate-y-1 active:scale-95 shadow-orange-200'
                   }`}
@@ -405,8 +497,151 @@ if (existingMeja.length > 0) {
 
       </div>
 
+      {/* POPUP MEJA */}
+      {showMejaPopup && (
+
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+
+          <div className="bg-white w-full max-w-4xl rounded-[35px] p-8 shadow-2xl">
+
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-8">
+
+              <div>
+
+                <h2 className="text-3xl font-black text-[#002366]">
+
+                  Pilih <span className="text-[#FF8C00]">Meja</span>
+
+                </h2>
+
+                <p className="text-gray-400 mt-1">
+
+                  Abu terang = dipakai
+
+                </p>
+
+              </div>
+
+              <button
+                onClick={() =>
+                  setShowMejaPopup(false)
+                }
+                className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 font-black text-xl"
+              >
+
+                ✕
+
+              </button>
+
+            </div>
+
+            {/* GRID */}
+            <div className="grid grid-cols-5 gap-4">
+
+              {Array.from(
+                { length: 20 },
+                (_, i) => {
+
+                  const nomor =
+                    (currentPage - 1) * 20 + i + 1;
+
+                  const isUsed =
+                    usedTables.includes(
+                      nomor
+                    );
+
+                  return (
+
+                    <button
+                      key={nomor}
+                      disabled={isUsed}
+                      onClick={() => {
+
+                        setMeja(nomor);
+
+                        setShowMejaPopup(false);
+
+                      }}
+                      className={`aspect-square rounded-2xl font-black text-xl transition-all shadow-md border-2
+                      
+                      ${
+                        isUsed
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                          : 'bg-gray-700 hover:bg-[#FF8C00] text-white border-gray-700 hover:border-[#FF8C00] hover:scale-105'
+                      }`}
+                    >
+
+                      {nomor}
+
+                    </button>
+
+                  );
+
+                }
+              )}
+
+            </div>
+
+            {/* PAGINATION */}
+            <div className="flex items-center justify-between mt-8">
+
+              <button
+                disabled={currentPage === 1}
+                onClick={() =>
+                  setCurrentPage(
+                    currentPage - 1
+                  )
+                }
+                className={`px-6 py-3 rounded-2xl font-bold ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-300'
+                    : 'bg-[#002366] text-white'
+                }`}
+              >
+
+                Prev
+
+              </button>
+
+              <div className="font-black text-[#002366] text-lg">
+
+                Halaman {currentPage}
+
+              </div>
+
+              <button
+                disabled={
+                  currentPage === maxPage
+                }
+                onClick={() =>
+                  setCurrentPage(
+                    currentPage + 1
+                  )
+                }
+                className={`px-6 py-3 rounded-2xl font-bold ${
+                  currentPage === maxPage
+                    ? 'bg-gray-100 text-gray-300'
+                    : 'bg-[#FF8C00] text-white'
+                }`}
+              >
+
+                Next
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </div>
+
   );
+
 };
 
 export default PesananAdmin;

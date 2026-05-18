@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
+
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
@@ -7,15 +11,19 @@ const AdminProsesPesanan = () => {
   const [activeOrders, setActiveOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // SEARCH
+  const [search, setSearch] = useState('');
+
+  // PAGINATION STATE
+  const [pages, setPages] = useState({});
+
   // PARSE ITEMS
   const parseItems = (items) => {
 
-    // SUDAH ARRAY
     if (Array.isArray(items)) {
       return items;
     }
 
-    // STRING JSON
     if (typeof items === 'string') {
 
       try {
@@ -39,7 +47,6 @@ const AdminProsesPesanan = () => {
 
     }
 
-    // NULL / FORMAT LAIN
     return [];
 
   };
@@ -78,9 +85,33 @@ const AdminProsesPesanan = () => {
 
   };
 
+  // FETCH
   useEffect(() => {
+
     fetchOrders();
+
   }, []);
+
+  // SEARCH FILTER
+  const filteredOrders = activeOrders.filter((order) => {
+
+    const keyword = search.toLowerCase();
+
+    return (
+
+      String(order.id)
+        .toLowerCase()
+        .includes(keyword)
+
+      ||
+
+      order.kode_pesanan
+        ?.toLowerCase()
+        .includes(keyword)
+
+    );
+
+  });
 
   // SELESAIKAN PESANAN
   const selesaikanPesanan = async (id) => {
@@ -96,7 +127,7 @@ const AdminProsesPesanan = () => {
 
       if (error) throw error;
 
-      // REFRESH DATA
+      // REFRESH
       fetchOrders();
 
       toast.success(
@@ -152,14 +183,29 @@ const AdminProsesPesanan = () => {
 
       </h2>
 
+      {/* SEARCH */}
+      <div className="mb-8">
+
+        <input
+          type="text"
+          placeholder="Cari ID / kode pesanan..."
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+          className="w-full md:w-[420px] p-4 rounded-2xl border border-gray-200 outline-none bg-white shadow-sm focus:border-[#FF8C00]"
+        />
+
+      </div>
+
       {/* EMPTY */}
-      {activeOrders.length === 0 ? (
+      {filteredOrders.length === 0 ? (
 
         <div className="bg-white p-20 rounded-[40px] text-center border-2 border-dashed">
 
           <p className="text-gray-400 italic">
 
-            Belum ada pesanan yang sedang diproses.
+            Pesanan tidak ditemukan.
 
           </p>
 
@@ -169,16 +215,36 @@ const AdminProsesPesanan = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {activeOrders.map((order) => {
+          {filteredOrders.map((order) => {
 
             // PARSE ITEMS
-            const parsedItems = parseItems(order.items);
+            const parsedItems =
+              parseItems(order.items);
+
+            // PAGINATION
+            const currentPage =
+              pages[order.id] || 1;
+
+            const itemsPerPage = 5;
+
+            const totalPages = Math.ceil(
+              parsedItems.length / itemsPerPage
+            );
+
+            const startIndex =
+              (currentPage - 1) * itemsPerPage;
+
+            const visibleItems =
+              parsedItems.slice(
+                startIndex,
+                startIndex + itemsPerPage
+              );
 
             return (
 
               <div
                 key={order.id}
-                className="bg-white rounded-[30px] shadow-md border overflow-hidden"
+                className="bg-white rounded-[25px] shadow-md border overflow-hidden flex flex-col h-650px"
               >
 
                 {/* HEADER */}
@@ -186,13 +252,21 @@ const AdminProsesPesanan = () => {
 
                   <div>
 
+                    {/* MEJA */}
                     <h4 className="font-black text-xl">
 
                       MEJA {order.nomor_meja}
 
                     </h4>
 
-                    {/* KODE PESANAN */}
+                    {/* ID */}
+                    <p className="text-[12px] mt-1 text-blue-200 font-semibold">
+
+                      ID: {order.id}
+
+                    </p>
+
+                    {/* KODE */}
                     <p className="text-[13px] mt-1 text-orange-300 font-bold">
 
                       {order.kode_pesanan || 'KODE BELUM ADA'}
@@ -202,7 +276,8 @@ const AdminProsesPesanan = () => {
                     {/* TANGGAL */}
                     <p className="text-[12px] opacity-80 mt-1">
 
-                      {new Date(order.created_at).toLocaleString('id-ID')}
+                      {new Date(order.created_at)
+                        .toLocaleString('id-ID')}
 
                     </p>
 
@@ -218,14 +293,14 @@ const AdminProsesPesanan = () => {
                 </div>
 
                 {/* BODY */}
-                <div className="p-6">
+                <div className="p-6 flex flex-col flex-1">
 
                   {/* ITEMS */}
-                  <ul className="mb-6 space-y-2">
+                 <ul className="mb-0 space-y-2 h-[220px] overflow-hidden">
 
-                    {parsedItems.length > 0 ? (
+                    {visibleItems.length > 0 ? (
 
-                      parsedItems.map((item, i) => (
+                      visibleItems.map((item, i) => (
 
                         <li
                           key={`${item.nama}-${i}`}
@@ -265,6 +340,62 @@ const AdminProsesPesanan = () => {
                     )}
 
                   </ul>
+
+                  {/* PAGINATION */}
+                  {totalPages > 1 && (
+
+                    <div className="flex justify-center items-center gap-2 mb-6">
+
+                      {/* PREV */}
+                      <button
+                        disabled={currentPage === 1}
+                        onClick={() =>
+                          setPages((prev) => ({
+                            ...prev,
+                            [order.id]: currentPage - 1
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                          currentPage === 1
+                            ? 'bg-gray-200 text-gray-400'
+                            : 'bg-[#002366] text-white'
+                        }`}
+                      >
+
+                        ←
+
+                      </button>
+
+                      {/* PAGE */}
+                      <span className="text-xs font-bold text-gray-500">
+
+                        {currentPage} / {totalPages}
+
+                      </span>
+
+                      {/* NEXT */}
+                      <button
+                        disabled={currentPage === totalPages}
+                        onClick={() =>
+                          setPages((prev) => ({
+                            ...prev,
+                            [order.id]: currentPage + 1
+                          }))
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                          currentPage === totalPages
+                            ? 'bg-gray-200 text-gray-400'
+                            : 'bg-[#002366] text-white'
+                        }`}
+                      >
+
+                        →
+
+                      </button>
+
+                    </div>
+
+                  )}
 
                   {/* METODE */}
                   <div className="flex justify-between items-center mb-4">
@@ -308,8 +439,10 @@ const AdminProsesPesanan = () => {
 
                   {/* BUTTON */}
                   <button
-                    onClick={() => selesaikanPesanan(order.id)}
-                    className="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                    onClick={() =>
+                      selesaikanPesanan(order.id)
+                    }
+                    className="mt-auto w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
                   >
 
                     Selesaikan Pesanan

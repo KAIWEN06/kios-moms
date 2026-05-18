@@ -13,6 +13,7 @@ import AdminProsesPesanan from './pages/admin/AdminProsesPesanan';
 import AdminRiwayatPesanan from './pages/admin/RiwayatPesananAdmin';
 import AdminKelolaMenu from './pages/admin/KelolaMenuAdmin';
 import AdminBuatPesanan from './pages/admin/BuatPesananAdmin';
+import HalamanLaporanAdmin from './pages/admin/HalamanLaporanAdmin';
 
 function App() {
   const navigate = useNavigate();
@@ -184,7 +185,12 @@ function App() {
             <AdminRiwayatPesanan historyOrders={historyOrders} />
           </AdminLayout>
         } />
-      </Routes>
+        <Route path="/laporan" element={
+        <AdminLayout>
+            <HalamanLaporanAdmin />
+          </AdminLayout>
+        } />
+        </Routes>
     </div>
   );
 }
