@@ -54,6 +54,15 @@ const PesananAdmin = ({
 
   };
 
+  const generateKodePesanan = () => {
+
+  return `INV-${crypto
+    .randomUUID()
+    .slice(0, 8)
+    .toUpperCase()}`;
+
+  };
+
   // PROSES PESANAN
   const handleProsesPesanan = async () => {
 
@@ -109,15 +118,19 @@ if (existingMeja.length > 0) {
       console.log("ITEMS:", itemsData);
 
       // INSERT KE SUPABASE
+
+      const kodePesanan = generateKodePesanan();
+
       const { data, error } = await supabase
         .from('history_pesanan')
         .insert([
           {
+            kode_pesanan: kodePesanan,
             nomor_meja: Number(meja),
             total_harga: Number(totalHarga),
             metode_pembayaran: payMethod,
             status: 'Diproses',
-            items: JSON.stringify(itemsData)
+            items: itemsData
           }
         ])
         .select();

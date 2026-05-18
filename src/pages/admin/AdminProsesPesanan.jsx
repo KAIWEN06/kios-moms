@@ -7,6 +7,43 @@ const AdminProsesPesanan = () => {
   const [activeOrders, setActiveOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // PARSE ITEMS
+  const parseItems = (items) => {
+
+    // SUDAH ARRAY
+    if (Array.isArray(items)) {
+      return items;
+    }
+
+    // STRING JSON
+    if (typeof items === 'string') {
+
+      try {
+
+        const parsed = JSON.parse(items);
+
+        return Array.isArray(parsed)
+          ? parsed
+          : [];
+
+      } catch (error) {
+
+        console.error(
+          'Gagal parse items:',
+          error
+        );
+
+        return [];
+
+      }
+
+    }
+
+    // NULL / FORMAT LAIN
+    return [];
+
+  };
+
   // FETCH DATA
   const fetchOrders = async () => {
 
@@ -108,12 +145,14 @@ const AdminProsesPesanan = () => {
 
     <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
 
+      {/* TITLE */}
       <h2 className="text-3xl font-black text-[#002366] mb-8">
 
         Monitoring <span className="text-[#FF8C00]">Meja Aktif</span>
 
       </h2>
 
+      {/* EMPTY */}
       {activeOrders.length === 0 ? (
 
         <div className="bg-white p-20 rounded-[40px] text-center border-2 border-dashed">
@@ -132,10 +171,8 @@ const AdminProsesPesanan = () => {
 
           {activeOrders.map((order) => {
 
-            // ITEMS
-            const parsedItems = Array.isArray(order.items)
-              ? order.items
-              : [];
+            // PARSE ITEMS
+            const parsedItems = parseItems(order.items);
 
             return (
 
@@ -155,14 +192,23 @@ const AdminProsesPesanan = () => {
 
                     </h4>
 
-                    <p className="text-[10px] opacity-80 mt-1">
+                    {/* KODE PESANAN */}
+                    <p className="text-[13px] mt-1 text-orange-300 font-bold">
 
-                      {new Date(order.created_at).toLocaleString()}
+                      {order.kode_pesanan || 'KODE BELUM ADA'}
+
+                    </p>
+
+                    {/* TANGGAL */}
+                    <p className="text-[12px] opacity-80 mt-1">
+
+                      {new Date(order.created_at).toLocaleString('id-ID')}
 
                     </p>
 
                   </div>
 
+                  {/* STATUS */}
                   <span className="text-[10px] bg-[#FF8C00] px-2 py-1 rounded font-bold uppercase tracking-wider">
 
                     DIPROSES
@@ -177,34 +223,46 @@ const AdminProsesPesanan = () => {
                   {/* ITEMS */}
                   <ul className="mb-6 space-y-2">
 
-                    {parsedItems.map((item, i) => (
+                    {parsedItems.length > 0 ? (
 
-                      <li
-                        key={i}
-                        className="flex justify-between text-sm border-b pb-1"
-                      >
+                      parsedItems.map((item, i) => (
 
-                        <span>
+                        <li
+                          key={`${item.nama}-${i}`}
+                          className="flex justify-between text-sm border-b pb-1"
+                        >
 
-                          <b className="text-[#FF8C00]">
+                          <span>
 
-                            {item.qty}x
+                            <b className="text-[#FF8C00]">
 
-                          </b>{' '}
+                              {item.qty}x
 
-                          {item.nama}
+                            </b>{' '}
 
-                        </span>
+                            {item.nama}
 
-                        <span className="text-gray-400 font-bold">
+                          </span>
 
-                          Rp {Number(item.subtotal).toLocaleString()}
+                          <span className="text-gray-400 font-bold">
 
-                        </span>
+                            Rp {Number(item.subtotal || 0).toLocaleString()}
+
+                          </span>
+
+                        </li>
+
+                      ))
+
+                    ) : (
+
+                      <li className="text-sm text-gray-400 italic list-none">
+
+                        Detail item tidak tersedia
 
                       </li>
 
-                    ))}
+                    )}
 
                   </ul>
 
@@ -242,7 +300,7 @@ const AdminProsesPesanan = () => {
 
                     <span className="text-2xl font-black text-[#002366]">
 
-                      Rp {Number(order.total_harga).toLocaleString()}
+                      Rp {Number(order.total_harga || 0).toLocaleString()}
 
                     </span>
 

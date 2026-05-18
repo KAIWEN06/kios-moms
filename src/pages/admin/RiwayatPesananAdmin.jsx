@@ -1,5 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useMemo
+} from 'react';
+
 import { supabase } from '../../lib/supabaseClient';
+
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+import { id } from 'date-fns/locale';
 
 const RiwayatPesanan = () => {
 
@@ -7,15 +17,18 @@ const RiwayatPesanan = () => {
   const [openIndex, setOpenIndex] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [searchKode, setSearchKode] = useState('');
+  const [selectedDate, setSelectedDate] = useState(null);
+
   // PARSE ITEMS
   const parseItems = (items) => {
 
-    // JIKA SUDAH ARRAY
+    // SUDAH ARRAY
     if (Array.isArray(items)) {
       return items;
     }
 
-    // JIKA STRING JSON
+    // STRING JSON
     if (typeof items === 'string') {
 
       try {
@@ -39,7 +52,7 @@ const RiwayatPesanan = () => {
 
     }
 
-    // JIKA NULL / UNDEFINED
+    // NULL / UNDEFINED
     return [];
 
   };
@@ -82,6 +95,88 @@ const RiwayatPesanan = () => {
     fetchHistory();
   }, []);
 
+  // AVAILABLE DATES
+  const availableDates = useMemo(() => {
+
+    return new Set(
+
+      historyOrders.map((o) =>
+        new Date(o.created_at).toDateString()
+      )
+
+    );
+
+  }, [historyOrders]);
+
+  const availableYears = useMemo(() => {
+
+  return [
+    ...new Set(
+
+      historyOrders.map((o) =>
+        new Date(o.created_at).getFullYear()
+      )
+
+    )
+  ];
+
+}, [historyOrders]);
+
+const availableMonths = useMemo(() => {
+
+  const months = new Set();
+
+  historyOrders.forEach((o) => {
+
+    const date = new Date(o.created_at);
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    months.add(`${year}-${month}`);
+
+  });
+
+  return months;
+
+}, [historyOrders]);
+
+
+  // FILTER DATE YANG TERSEDIA
+  const isDateAvailable = (date) => {
+
+    return availableDates.has(
+      date.toDateString()
+    );
+
+  };
+
+  // FILTER DATA
+  const filteredOrders = historyOrders.filter((o) => {
+
+    // FILTER KODE
+    const cocokKode =
+      o.kode_pesanan
+        ?.toLowerCase()
+        .includes(searchKode.toLowerCase());
+
+    // FILTER TANGGAL
+    let cocokTanggal = true;
+
+    if (selectedDate) {
+
+      const tanggalPesanan = new Date(o.created_at);
+
+      cocokTanggal =
+        tanggalPesanan.toDateString() ===
+        selectedDate.toDateString();
+
+    }
+
+    return cocokKode && cocokTanggal;
+
+  });
+
   // TOGGLE DETAIL
   const toggleDetail = (idx) => {
 
@@ -119,8 +214,227 @@ const RiwayatPesanan = () => {
 
       </h2>
 
+      {/* FILTER */}
+      <div className="flex flex-col md:flex-row gap-4 mb-[25px] items-start">
+
+        {/* SEARCH KODE */}
+        <input
+          type="text"
+          placeholder="Cari kode pesanan..."
+          value={searchKode}
+          onChange={(e) => setSearchKode(e.target.value)}
+          className="flex-1 p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+        />
+
+        {/* FILTER DATE */}
+        <div className="relative w-full md:w-[260px]">
+
+          <DatePicker
+            selected={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
+            locale={id}
+            dateFormat="dd MMMM yyyy"
+            placeholderText="Pilih tanggal"
+            showPopperArrow={false}
+            calendarClassName="rounded-2xl border shadow-xl"
+            popperClassName="z-50"
+            popperPlacement="bottom-end"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            scrollableYearDropdown
+            yearDropdownItemNumber={10}
+            filterDate={isDateAvailable}
+            highlightDates={[
+              ...historyOrders.map((o) =>
+                new Date(o.created_at)
+              )
+            ]}
+            className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+
+            renderCustomHeader={({
+              date,
+              changeYear,
+              changeMonth
+            }) => {
+
+  const currentYear = date.getFullYear();
+
+  const months = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember'
+  ];
+
+  // BULAN VALID DI TAHUN INI
+  const validMonthIndexes = months
+    .map((_, index) => {
+
+      const isValid = availableMonths.has(
+        `${currentYear}-${index}`
+      );
+
+      return isValid
+        ? index
+        : null;
+
+    })
+    .filter((v) => v !== null);
+
+  // NAMA BULAN VALID
+  const validMonths =
+    validMonthIndexes.map(
+      (index) => months[index]
+    );
+
+  // POSISI BULAN SEKARANG
+  const currentMonthIndex =
+    date.getMonth();
+
+  const currentPosition =
+    validMonthIndexes.indexOf(
+      currentMonthIndex
+    );
+
+  // BULAN SEBELUM & SESUDAH
+  const prevMonth =
+    validMonthIndexes[
+      currentPosition - 1
+    ];
+
+  const nextMonth =
+    validMonthIndexes[
+      currentPosition + 1
+    ];
+
+  return (
+
+    <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
+
+      {/* PREV */}
+      <button
+        type="button"
+        disabled={prevMonth === undefined}
+        onClick={() => {
+
+          if (
+            prevMonth !== undefined
+          ) {
+
+            changeMonth(prevMonth);
+
+          }
+
+        }}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        ←
+      </button>
+
+      {/* CENTER */}
+      <div className="flex items-center gap-2 flex-1">
+
+        {/* MONTH */}
+        <select
+          value={months[currentMonthIndex]}
+          onChange={({
+            target: { value }
+          }) => {
+
+            const monthIndex =
+              months.indexOf(value);
+
+            changeMonth(monthIndex);
+
+          }}
+          className="flex-1 h-10 px-3 rounded-xl border bg-gray-50 text-sm font-semibold outline-none"
+        >
+
+          {validMonths.map((month) => (
+
+            <option
+              key={month}
+              value={month}
+            >
+              {month}
+            </option>
+
+          ))}
+
+        </select>
+
+        {/* YEAR */}
+        <select
+          value={currentYear}
+          onChange={({
+            target: { value }
+          }) => {
+
+            changeYear(
+              Number(value)
+            );
+
+          }}
+          className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50 text-sm font-semibold outline-none"
+        >
+
+          {availableYears.map((year) => (
+
+            <option
+              key={year}
+              value={year}
+            >
+              {year}
+            </option>
+
+          ))}
+
+        </select>
+
+      </div>
+
+      {/* NEXT */}
+      <button
+        type="button"
+        disabled={nextMonth === undefined}
+        onClick={() => {
+
+          if (
+            nextMonth !== undefined
+          ) {
+
+            changeMonth(nextMonth);
+
+          }
+
+        }}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        →
+      </button>
+
+    </div>
+
+  );
+
+}}
+          />
+
+        </div>
+
+      </div>
+
       {/* EMPTY */}
-      {historyOrders.length === 0 ? (
+      {filteredOrders.length === 0 ? (
 
         <div className="bg-white p-20 rounded-3xl text-center border-2 border-dashed">
 
@@ -134,7 +448,7 @@ const RiwayatPesanan = () => {
 
       ) : (
 
-        historyOrders.map((o, idx) => {
+        filteredOrders.map((o, idx) => {
 
           // ITEMS
           const parsedItems = parseItems(o.items);
@@ -152,27 +466,41 @@ const RiwayatPesanan = () => {
                 onClick={() => toggleDetail(idx)}
               >
 
-                <span className="text-gray-800">
+                {/* LEFT */}
+                <div className="flex flex-col">
 
-                  <b className="font-bold">
+                  {/* MEJA + TANGGAL */}
+                  <span className="text-gray-800">
 
-                    Meja {o.nomor_meja}
+                    <b className="font-bold">
 
-                  </b>
+                      Meja {o.nomor_meja}
 
-                  <span className="mx-1 text-gray-400">
+                    </b>
 
-                    |
+                    <span className="mx-1 text-gray-400">
+
+                      |
+
+                    </span>
+
+                    {new Date(o.created_at).toLocaleString('id-ID')}
 
                   </span>
 
-                  {new Date(o.created_at).toLocaleString()}
+                  {/* KODE PESANAN */}
+                  <span className="text-[12px] text-[#FF8C00] font-black tracking-wide mt-1">
 
-                </span>
+                    {o.kode_pesanan || 'KODE TIDAK TERSEDIA'}
 
+                  </span>
+
+                </div>
+
+                {/* RIGHT */}
                 <span className="font-semibold text-gray-900 flex items-center gap-2">
 
-                  Rp {Number(o.total_harga).toLocaleString()}
+                  Rp {Number(o.total_harga || 0).toLocaleString()}
 
                   <span
                     className={`transition-transform duration-300 ${
@@ -190,84 +518,88 @@ const RiwayatPesanan = () => {
 
               {/* BODY */}
               <div
-                className={`p-[15px] border-t border-[#eee] bg-white transition-all duration-300 ${
+                className={`overflow-hidden transition-all duration-500 ease-in-out ${
                   openIndex === idx
-                    ? 'block'
-                    : 'hidden'
+                    ? 'max-h-[500px] opacity-100'
+                    : 'max-h-0 opacity-0'
                 }`}
               >
 
-                {/* ITEMS */}
-                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                <div className="p-[15px] border-t border-[#eee] bg-white">
 
-                  {parsedItems.length > 0 ? (
+                  {/* ITEMS */}
+                  <ul className="list-disc list-inside space-y-2 text-gray-600">
 
-                    parsedItems.map((i, iIdx) => (
+                    {parsedItems.length > 0 ? (
 
-                      <li
-                        key={iIdx}
-                        className="text-sm"
-                      >
+                      parsedItems.map((i, iIdx) => (
 
-                        <span className="font-semibold text-gray-800">
+                        <li
+                          key={`${i.nama}-${iIdx}`}
+                          className="text-sm"
+                        >
 
-                          {i.nama}
+                          <span className="font-semibold text-gray-800">
 
-                        </span>{' '}
+                            {i.nama}
 
-                        x {i.qty}
+                          </span>{' '}
 
-                        <span className="ml-2 text-gray-500">
+                          x {i.qty}
 
-                          - Rp {Number(i.subtotal).toLocaleString()}
+                          <span className="ml-2 text-gray-500">
 
-                        </span>
+                            - Rp {Number(i.subtotal || 0).toLocaleString()}
+
+                          </span>
+
+                        </li>
+
+                      ))
+
+                    ) : (
+
+                      <li className="text-sm text-gray-400 italic list-none">
+
+                        Detail item tidak tersedia
 
                       </li>
 
-                    ))
+                    )}
 
-                  ) : (
+                  </ul>
 
-                    <p className="text-sm text-gray-400 italic">
+                  {/* METODE PEMBAYARAN */}
+                  <div className="mt-[15px] flex justify-between items-center">
 
-                      Detail item tidak tersedia
+                    <span className="text-sm text-gray-500 font-semibold">
 
-                    </p>
+                      Metode Pembayaran
 
-                  )}
+                    </span>
 
-                </ul>
+                    <span
+                      className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
+                        o.metode_pembayaran === 'QRIS'
+                          ? 'bg-blue-500'
+                          : 'bg-green-500'
+                      }`}
+                    >
 
-                {/* METODE PEMBAYARAN */}
-                <div className="mt-[15px] flex justify-between items-center">
+                      {o.metode_pembayaran}
 
-                  <span className="text-sm text-gray-500 font-semibold">
+                    </span>
 
-                    Metode Pembayaran
+                  </div>
 
-                  </span>
+                  {/* STATUS */}
+                  <p className="mt-[15px] font-bold text-green-600 tracking-wide text-sm">
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
-                      o.metode_pembayaran === 'QRIS'
-                        ? 'bg-blue-500'
-                        : 'bg-green-500'
-                    }`}
-                  >
+                    STATUS: SELESAI
 
-                    {o.metode_pembayaran}
-
-                  </span>
+                  </p>
 
                 </div>
-
-                {/* STATUS */}
-                <p className="mt-[15px] font-bold text-green-600 tracking-wide text-sm">
-
-                  STATUS: SELESAI
-
-                </p>
 
               </div>
 
