@@ -1,84 +1,229 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState
+} from 'react';
+
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+
 import { supabase } from '../../lib/supabaseClient';
 
 const HalamanLaporanAdmin = () => {
 
-  const [menuTerlaris, setMenuTerlaris] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // STATE
+  const [loading, setLoading] =
+    useState(true);
 
-  // FETCH LAPORAN
+  const [menuTerlaris, setMenuTerlaris] =
+    useState([]);
+
+  const [chartData, setChartData] =
+    useState([]);
+
+  const [riwayat, setRiwayat] =
+    useState([]);
+
+  // STATISTIK
+  const [totalPendapatan, setTotalPendapatan] =
+    useState(0);
+
+  const [totalPesanan, setTotalPesanan] =
+    useState(0);
+
+  const [menuAktif, setMenuAktif] =
+    useState(0);
+
+  const [menuNonaktif, setMenuNonaktif] =
+    useState(0);
+
+  // FILTER
+  const [filter, setFilter] =
+    useState('hari');
+
+  // FETCH
   const fetchLaporan = async () => {
 
     try {
 
       setLoading(true);
 
-      // AMBIL HISTORY
-      const { data: historyData, error } = await supabase
+      // HISTORY
+      const {
+        data: historyData = [],
+        error
+      } = await supabase
         .from('history_pesanan')
         .select('*')
         .eq('status', 'Selesai');
 
       if (error) throw error;
 
-      // AMBIL MENU
-      const { data: menuData } = await supabase
+      // MENU
+      const {
+        data: menuData = []
+      } = await supabase
         .from('menu')
         .select('*');
 
-      // TOTAL MENU
-      const totalMenu = {};
+      // FILTER
+      const now = new Date();
 
-      historyData.forEach((pesanan) => {
+      const filteredHistory =
+        historyData.filter((item) => {
 
-        let items = [];
+          if (!item.created_at)
+            return false;
 
-        // PARSE ITEMS
-        if (Array.isArray(pesanan.items)) {
+          const tanggal =
+            new Date(item.created_at);
 
-          items = pesanan.items;
+          // HARI
+          if (filter === 'hari') {
 
-        } else if (
-          typeof pesanan.items === 'string'
-        ) {
-
-          try {
-
-            items = JSON.parse(
-              pesanan.items
+            return (
+              tanggal.toDateString() ===
+              now.toDateString()
             );
 
-          } catch {
+          }
 
-            items = [];
+          // MINGGU
+          if (filter === 'minggu') {
+
+            const diff =
+              (now - tanggal) /
+              (1000 * 60 * 60 * 24);
+
+            return diff <= 7;
 
           }
 
-        }
+          // BULAN
+          if (filter === 'bulan') {
 
-        // HITUNG TOTAL
-        items.forEach((item) => {
-
-          // CARI DATA MENU
-          const menuAsli = menuData.find(
-            (m) => m.nama === item.nama
-          );
-
-          if (!totalMenu[item.nama]) {
-
-            totalMenu[item.nama] = {
-              nama: item.nama,
-              total: 0,
-              img: menuAsli?.img || '',
-            };
+            return (
+              tanggal.getMonth() ===
+              now.getMonth()
+            );
 
           }
 
-          totalMenu[item.nama].total += item.qty;
+          return true;
 
         });
 
-      });
+      // TOTAL
+      const total =
+        filteredHistory.reduce(
+          (acc, item) =>
+            acc +
+            Number(item.total_harga || 0),
+          0
+        );
+
+      setTotalPendapatan(total);
+
+      setTotalPesanan(
+        filteredHistory.length
+      );
+
+      setRiwayat(filteredHistory);
+
+      // MENU AKTIF
+      setMenuAktif(
+        menuData.filter(
+          (m) => m.stok !== 'nonaktif'
+        ).length
+      );
+
+      // MENU NONAKTIF
+      setMenuNonaktif(
+        menuData.filter(
+          (m) =>
+            m.stok === 'nonaktif'
+        ).length
+      );
+
+      // MENU TERLARIS
+      const totalMenu = {};
+
+      filteredHistory.forEach(
+        (pesanan) => {
+
+          let items = [];
+
+          // ARRAY
+          if (
+            Array.isArray(
+              pesanan.items
+            )
+          ) {
+
+            items = pesanan.items;
+
+          }
+
+          // STRING JSON
+          else if (
+            typeof pesanan.items ===
+            'string'
+          ) {
+
+            try {
+
+              items = JSON.parse(
+                pesanan.items
+              );
+
+            } catch {
+
+              items = [];
+
+            }
+
+          }
+
+          // LOOP
+          items.forEach((item) => {
+
+            if (!item.nama) return;
+
+            const menuAsli =
+              menuData.find(
+                (m) =>
+                  m.nama === item.nama
+              );
+
+            if (
+              !totalMenu[item.nama]
+            ) {
+
+              totalMenu[item.nama] = {
+
+                nama: item.nama,
+                total: 0,
+                img:
+                  menuAsli?.img ||
+                  'https://via.placeholder.com/150'
+
+              };
+
+            }
+
+            totalMenu[item.nama].total +=
+              Number(item.qty || 0);
+
+          });
+
+        }
+      );
 
       // SORT
       const hasil =
@@ -90,10 +235,27 @@ const HalamanLaporanAdmin = () => {
 
       setMenuTerlaris(hasil);
 
+      // CHART
+      const grafik =
+        filteredHistory.map(
+          (item, index) => ({
+
+            name: `#${index + 1}`,
+
+            total:
+              Number(
+                item.total_harga
+              ) || 0
+
+          })
+        );
+
+      setChartData(grafik);
+
     } catch (error) {
 
       console.error(
-        'Gagal mengambil laporan:',
+        'ERROR LAPORAN:',
         error.message
       );
 
@@ -105,12 +267,12 @@ const HalamanLaporanAdmin = () => {
 
   };
 
-  // FETCH AWAL
+  // FETCH
   useEffect(() => {
 
     fetchLaporan();
 
-  }, []);
+  }, [filter]);
 
   // LOADING
   if (loading) {
@@ -131,7 +293,7 @@ const HalamanLaporanAdmin = () => {
 
     <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
 
-      {/* TITLE */}
+      {/* HEADER */}
       <div className="mb-10">
 
         <h1 className="text-4xl font-black text-[#002366] mb-2">
@@ -140,97 +302,208 @@ const HalamanLaporanAdmin = () => {
 
         </h1>
 
-        <p className="text-gray-500 font-medium">
+        <p className="text-gray-500">
 
-          Daftar menu paling sering dipesan pelanggan.
+          Statistik penjualan kios.
 
         </p>
 
       </div>
 
-      {/* CARD */}
-      <div className="bg-white rounded-[35px] p-8 shadow-md border overflow-hidden">
+      {/* FILTER */}
+      <div className="flex gap-3 mb-10">
 
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-8">
+        <button
+          onClick={() =>
+            setFilter('hari')
+          }
+          className={`px-5 py-3 rounded-2xl font-black ${
+            filter === 'hari'
+              ? 'bg-[#002366] text-white'
+              : 'bg-white'
+          }`}
+        >
 
-          <div>
+          Hari
 
-            <h2 className="text-2xl font-black text-[#002366]">
+        </button>
 
-              Menu Terlaris
+        <button
+          onClick={() =>
+            setFilter('minggu')
+          }
+          className={`px-5 py-3 rounded-2xl font-black ${
+            filter === 'minggu'
+              ? 'bg-[#002366] text-white'
+              : 'bg-white'
+          }`}
+        >
 
-            </h2>
+          Minggu
 
-            <p className="text-sm text-gray-400 mt-1">
+        </button>
 
-              Berdasarkan total pesanan selesai.
+        <button
+          onClick={() =>
+            setFilter('bulan')
+          }
+          className={`px-5 py-3 rounded-2xl font-black ${
+            filter === 'bulan'
+              ? 'bg-[#002366] text-white'
+              : 'bg-white'
+          }`}
+        >
 
-            </p>
+          Bulan
 
-          </div>
+        </button>
 
-          <div className="bg-[#FF8C00] text-white px-4 py-2 rounded-2xl text-sm font-black shadow-md">
+      </div>
 
-            {menuTerlaris.length} MENU
+      {/* STATISTIK */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
 
-          </div>
+        <div className="bg-white rounded-[30px] p-6 shadow-sm">
+
+          <p className="text-gray-400 text-sm mb-2">
+
+            Pendapatan
+
+          </p>
+
+          <h2 className="text-3xl font-black text-[#002366]">
+
+            Rp {totalPendapatan.toLocaleString()}
+
+          </h2>
 
         </div>
 
-        {/* EMPTY */}
-        {menuTerlaris.length === 0 ? (
+        <div className="bg-white rounded-[30px] p-6 shadow-sm">
 
-          <div className="text-center py-20 text-gray-400 italic border-2 border-dashed rounded-3xl">
+          <p className="text-gray-400 text-sm mb-2">
 
-            Belum ada data penjualan.
+            Pesanan
 
-          </div>
+          </p>
 
-        ) : (
+          <h2 className="text-3xl font-black text-[#FF8C00]">
 
-          <div className="space-y-4">
+            {totalPesanan}
 
-            {menuTerlaris.map((menu, index) => (
+          </h2>
+
+        </div>
+
+        <div className="bg-white rounded-[30px] p-6 shadow-sm">
+
+          <p className="text-gray-400 text-sm mb-2">
+
+            Menu Aktif
+
+          </p>
+
+          <h2 className="text-3xl font-black text-green-500">
+
+            {menuAktif}
+
+          </h2>
+
+        </div>
+
+        <div className="bg-white rounded-[30px] p-6 shadow-sm">
+
+          <p className="text-gray-400 text-sm mb-2">
+
+            Menu Nonaktif
+
+          </p>
+
+          <h2 className="text-3xl font-black text-red-500">
+
+            {menuNonaktif}
+
+          </h2>
+
+        </div>
+
+      </div>
+
+      {/* CHART */}
+      <div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
+
+        <h2 className="text-2xl font-black text-[#002366] mb-8">
+
+          Grafik Penjualan
+
+        </h2>
+
+        <ResponsiveContainer
+          width="100%"
+          height={300}
+        >
+
+          <LineChart data={chartData}>
+
+            <CartesianGrid strokeDasharray="3 3" />
+
+            <XAxis dataKey="name" />
+
+            <YAxis />
+
+            <Tooltip />
+
+            <Line
+              type="monotone"
+              dataKey="total"
+              stroke="#FF8C00"
+              strokeWidth={4}
+            />
+
+          </LineChart>
+
+        </ResponsiveContainer>
+
+      </div>
+
+      {/* MENU TERLARIS */}
+      <div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
+
+        <h2 className="text-2xl font-black text-[#002366] mb-8">
+
+          Menu Terlaris
+
+        </h2>
+
+        <div className="space-y-4">
+
+          {menuTerlaris.map(
+            (menu, index) => (
 
               <div
                 key={index}
-                className="flex items-center justify-between bg-[#f8f9fc] rounded-2xl p-5 border hover:shadow-md transition-all"
+                className="flex items-center justify-between bg-[#f8f9fc] rounded-2xl p-5"
               >
 
-                {/* LEFT */}
                 <div className="flex items-center gap-5">
 
-                  {/* GAMBAR */}
-                  <div className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-md border bg-white">
+                  <img
+                    src={menu.img}
+                    alt={menu.nama}
+                    className="w-20 h-20 rounded-2xl object-cover"
+                  />
 
-                    <img
-                      src={menu.img}
-                      alt={menu.nama}
-                      className="w-full h-full object-cover"
-                    />
-
-                    {/* RANK */}
-                    <div className="absolute top-2 left-2 bg-[#FF8C00] text-white text-[11px] px-2 py-1 rounded-lg font-black shadow">
-
-                      #{index + 1}
-
-                    </div>
-
-                  </div>
-
-                  {/* INFO */}
                   <div>
 
-                    <h3 className="font-black text-2xl text-[#002366]">
+                    <h3 className="font-black text-xl text-[#002366]">
 
                       {menu.nama}
 
                     </h3>
 
-                    <p className="text-gray-400 text-base mt-1">
+                    <p className="text-gray-400">
 
-                      Menu favorit pelanggan
+                      Ranking #{index + 1}
 
                     </p>
 
@@ -238,30 +511,18 @@ const HalamanLaporanAdmin = () => {
 
                 </div>
 
-                {/* RIGHT */}
-                <div className="text-right">
+                <h2 className="text-3xl font-black text-[#FF8C00]">
 
-                  <p className="text-sm text-gray-400 uppercase font-bold mb-1">
+                  {menu.total}x
 
-                    Total Dipesan
-
-                  </p>
-
-                  <h2 className="text-4xl font-black text-[#FF8C00]">
-
-                    {menu.total}x
-
-                  </h2>
-
-                </div>
+                </h2>
 
               </div>
 
-            ))}
+            )
+          )}
 
-          </div>
-
-        )}
+        </div>
 
       </div>
 

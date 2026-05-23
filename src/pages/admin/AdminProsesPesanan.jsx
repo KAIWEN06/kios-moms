@@ -293,10 +293,10 @@ const AdminProsesPesanan = () => {
                 </div>
 
                 {/* BODY */}
-                <div className="p-6 flex flex-col flex-1">
+                <div className="p-5 flex flex-col flex-1">
 
                   {/* ITEMS */}
-                 <ul className="mb-0 space-y-2 h-[220px] overflow-hidden">
+                 <ul className="mb-6 space-y-2 h-220px overflow-hidden">
 
                     {visibleItems.length > 0 ? (
 
