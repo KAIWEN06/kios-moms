@@ -1,3 +1,7 @@
+// =========================
+// IMPORT
+// =========================
+
 import React, {
   useEffect,
   useState
@@ -15,48 +19,102 @@ import {
 
 import { supabase } from '../../lib/supabaseClient';
 
+// DOWNLOAD PDF
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// =========================
+// COMPONENT
+// =========================
+
 const HalamanLaporanAdmin = () => {
 
+  // =========================
   // STATE
+  // =========================
+
   const [loading, setLoading] =
     useState(true);
 
-  const [menuTerlaris, setMenuTerlaris] =
+  const [allHistory, setAllHistory] =
+    useState([]);
+
+  const [filteredHistory, setFilteredHistory] =
     useState([]);
 
   const [chartData, setChartData] =
     useState([]);
 
-  const [riwayat, setRiwayat] =
+  const [menuTerlaris, setMenuTerlaris] =
     useState([]);
 
-  // STATISTIK
+  // FILTER
+  const [filter, setFilter] =
+    useState('bulan');
+
+  // DATE
+  const now = new Date();
+
+  const [selectedYear, setSelectedYear] =
+    useState(now.getFullYear());
+
+  const [selectedMonth, setSelectedMonth] =
+    useState(now.getMonth());
+
+  const [selectedDay, setSelectedDay] =
+    useState(now.getDate());
+
+  const [selectedWeek, setSelectedWeek] =
+    useState(1);
+
+  // TOTAL
   const [totalPendapatan, setTotalPendapatan] =
     useState(0);
 
   const [totalPesanan, setTotalPesanan] =
     useState(0);
 
-  const [menuAktif, setMenuAktif] =
-    useState(0);
+  // =========================
+  // CONSTANT
+  // =========================
 
-  const [menuNonaktif, setMenuNonaktif] =
-    useState(0);
+  const namaHari = [
+    'Minggu',
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu'
+  ];
 
-  // FILTER
-  const [filter, setFilter] =
-    useState('hari');
+  const namaBulan = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember'
+  ];
 
-  // FETCH
-  const fetchLaporan = async () => {
+  // =========================
+  // FETCH DATA
+  // =========================
+
+  const fetchData = async () => {
 
     try {
 
       setLoading(true);
 
-      // HISTORY
       const {
-        data: historyData = [],
+        data,
         error
       } = await supabase
         .from('history_pesanan')
@@ -65,199 +123,11 @@ const HalamanLaporanAdmin = () => {
 
       if (error) throw error;
 
-      // MENU
-      const {
-        data: menuData = []
-      } = await supabase
-        .from('menu')
-        .select('*');
-
-      // FILTER
-      const now = new Date();
-
-      const filteredHistory =
-        historyData.filter((item) => {
-
-          if (!item.created_at)
-            return false;
-
-          const tanggal =
-            new Date(item.created_at);
-
-          // HARI
-          if (filter === 'hari') {
-
-            return (
-              tanggal.toDateString() ===
-              now.toDateString()
-            );
-
-          }
-
-          // MINGGU
-          if (filter === 'minggu') {
-
-            const diff =
-              (now - tanggal) /
-              (1000 * 60 * 60 * 24);
-
-            return diff <= 7;
-
-          }
-
-          // BULAN
-          if (filter === 'bulan') {
-
-            return (
-              tanggal.getMonth() ===
-              now.getMonth()
-            );
-
-          }
-
-          return true;
-
-        });
-
-      // TOTAL
-      const total =
-        filteredHistory.reduce(
-          (acc, item) =>
-            acc +
-            Number(item.total_harga || 0),
-          0
-        );
-
-      setTotalPendapatan(total);
-
-      setTotalPesanan(
-        filteredHistory.length
-      );
-
-      setRiwayat(filteredHistory);
-
-      // MENU AKTIF
-      setMenuAktif(
-        menuData.filter(
-          (m) => m.stok !== 'nonaktif'
-        ).length
-      );
-
-      // MENU NONAKTIF
-      setMenuNonaktif(
-        menuData.filter(
-          (m) =>
-            m.stok === 'nonaktif'
-        ).length
-      );
-
-      // MENU TERLARIS
-      const totalMenu = {};
-
-      filteredHistory.forEach(
-        (pesanan) => {
-
-          let items = [];
-
-          // ARRAY
-          if (
-            Array.isArray(
-              pesanan.items
-            )
-          ) {
-
-            items = pesanan.items;
-
-          }
-
-          // STRING JSON
-          else if (
-            typeof pesanan.items ===
-            'string'
-          ) {
-
-            try {
-
-              items = JSON.parse(
-                pesanan.items
-              );
-
-            } catch {
-
-              items = [];
-
-            }
-
-          }
-
-          // LOOP
-          items.forEach((item) => {
-
-            if (!item.nama) return;
-
-            const menuAsli =
-              menuData.find(
-                (m) =>
-                  m.nama === item.nama
-              );
-
-            if (
-              !totalMenu[item.nama]
-            ) {
-
-              totalMenu[item.nama] = {
-
-                nama: item.nama,
-                total: 0,
-                img:
-                  menuAsli?.img ||
-                  'https://via.placeholder.com/150'
-
-              };
-
-            }
-
-            totalMenu[item.nama].total +=
-              Number(item.qty || 0);
-
-          });
-
-        }
-      );
-
-      // SORT
-      const hasil =
-        Object.values(totalMenu)
-          .sort(
-            (a, b) =>
-              b.total - a.total
-          );
-
-      setMenuTerlaris(hasil);
-
-      // CHART
-      const grafik =
-        filteredHistory.map(
-          (item, index) => ({
-
-            name: `#${index + 1}`,
-
-            total:
-              Number(
-                item.total_harga
-              ) || 0
-
-          })
-        );
-
-      setChartData(grafik);
+      setAllHistory(data || []);
 
     } catch (error) {
 
-      console.error(
-        'ERROR LAPORAN:',
-        error.message
-      );
+      console.log(error);
 
     } finally {
 
@@ -267,14 +137,505 @@ const HalamanLaporanAdmin = () => {
 
   };
 
-  // FETCH
   useEffect(() => {
 
-    fetchLaporan();
+    fetchData();
 
-  }, [filter]);
+  }, []);
 
+  // =========================
+  // FILTER DATA
+  // =========================
+
+  useEffect(() => {
+
+    let hasil = [];
+
+    // HARI
+    if (filter === 'hari') {
+
+      hasil = allHistory.filter((item) => {
+
+        const d =
+          new Date(item.created_at);
+
+        return (
+
+          d.getFullYear() ===
+            Number(selectedYear) &&
+
+          d.getMonth() ===
+            Number(selectedMonth) &&
+
+          d.getDate() ===
+            Number(selectedDay)
+
+        );
+
+      });
+
+    }
+
+    // MINGGU
+    else if (
+      filter === 'minggu'
+    ) {
+
+      const start =
+        (selectedWeek - 1) * 7 + 1;
+
+      const end =
+        start + 6;
+
+      hasil = allHistory.filter((item) => {
+
+        const d =
+          new Date(item.created_at);
+
+        return (
+
+          d.getFullYear() ===
+            Number(selectedYear) &&
+
+          d.getMonth() ===
+            Number(selectedMonth) &&
+
+          d.getDate() >= start &&
+          d.getDate() <= end
+
+        );
+
+      });
+
+    }
+
+    // BULAN
+    else if (
+      filter === 'bulan'
+    ) {
+
+      hasil = allHistory.filter((item) => {
+
+        const d =
+          new Date(item.created_at);
+
+        return (
+
+          d.getFullYear() ===
+            Number(selectedYear) &&
+
+          d.getMonth() ===
+            Number(selectedMonth)
+
+        );
+
+      });
+
+    }
+
+    // TAHUN
+    else {
+
+      hasil = allHistory.filter((item) => {
+
+        const d =
+          new Date(item.created_at);
+
+        return (
+
+          d.getFullYear() ===
+          Number(selectedYear)
+
+        );
+
+      });
+
+    }
+
+    setFilteredHistory(hasil);
+
+    // =========================
+    // TOTAL
+    // =========================
+
+    const total =
+      hasil.reduce(
+        (a, b) =>
+          a +
+          Number(b.total_harga || 0),
+        0
+      );
+
+    setTotalPendapatan(total);
+
+    setTotalPesanan(
+      hasil.length
+    );
+
+    // =========================
+    // MENU TERLARIS
+    // =========================
+
+    const totalMenu = {};
+
+    hasil.forEach((pesanan) => {
+
+      let items = [];
+
+      if (
+        Array.isArray(
+          pesanan.items
+        )
+      ) {
+
+        items = pesanan.items;
+
+      }
+
+      else if (
+        typeof pesanan.items ===
+        'string'
+      ) {
+
+        try {
+
+          items = JSON.parse(
+            pesanan.items
+          );
+
+        } catch {
+
+          items = [];
+
+        }
+
+      }
+
+      items.forEach((item) => {
+
+        if (!item.nama) return;
+
+        if (
+          !totalMenu[item.nama]
+        ) {
+
+          totalMenu[item.nama] = {
+
+            nama: item.nama,
+            total: 0
+
+          };
+
+        }
+
+        totalMenu[item.nama].total +=
+          Number(item.qty || 0);
+
+      });
+
+    });
+
+    setMenuTerlaris(
+      Object.values(totalMenu)
+        .sort(
+          (a, b) =>
+            b.total - a.total
+        )
+    );
+
+    // =========================
+    // CHART
+    // =========================
+
+    // HARI
+    if (filter === 'hari') {
+
+      const nama =
+        namaHari[
+          new Date(
+            selectedYear,
+            selectedMonth,
+            selectedDay
+          ).getDay()
+        ];
+
+      setChartData([
+        {
+          name: nama,
+          total
+        }
+      ]);
+
+    }
+
+    // MINGGU
+    else if (
+      filter === 'minggu'
+    ) {
+
+      const grafik = [];
+
+      for (
+        let i = 1;
+        i <= 7;
+        i++
+      ) {
+
+        const tanggal =
+          (selectedWeek - 1) * 7 + i;
+
+        const totalHari =
+          hasil
+            .filter((item) => {
+
+              const d =
+                new Date(
+                  item.created_at
+                );
+
+              return (
+                d.getDate() ===
+                tanggal
+              );
+
+            })
+            .reduce(
+              (a, b) =>
+                a +
+                Number(
+                  b.total_harga
+                ),
+              0
+            );
+
+        grafik.push({
+
+          name:
+            namaHari[
+              new Date(
+                selectedYear,
+                selectedMonth,
+                tanggal
+              ).getDay()
+            ],
+
+          total:
+            totalHari
+
+        });
+
+      }
+
+      setChartData(grafik);
+
+    }
+
+    // BULAN
+    else if (
+      filter === 'bulan'
+    ) {
+
+      setChartData([
+        {
+          name:
+            namaBulan[
+              selectedMonth
+            ],
+          total
+        }
+      ]);
+
+    }
+
+    // TAHUN
+    else {
+
+      const grafik = [];
+
+      for (
+        let i = 0;
+        i < 12;
+        i++
+      ) {
+
+        const totalBulan =
+          allHistory
+            .filter((item) => {
+
+              const d =
+                new Date(
+                  item.created_at
+                );
+
+              return (
+
+                d.getFullYear() ===
+                  Number(
+                    selectedYear
+                  ) &&
+
+                d.getMonth() === i
+
+              );
+
+            })
+            .reduce(
+              (a, b) =>
+                a +
+                Number(
+                  b.total_harga
+                ),
+              0
+            );
+
+        grafik.push({
+
+          name:
+            namaBulan[i],
+
+          total:
+            totalBulan
+
+        });
+
+      }
+
+      setChartData(grafik);
+
+    }
+
+  }, [
+    allHistory,
+    filter,
+    selectedYear,
+    selectedMonth,
+    selectedDay,
+    selectedWeek
+  ]);
+
+  // =========================
+  // DOWNLOAD PDF
+  // =========================
+
+  const downloadPDF = () => {
+
+    const doc =
+      new jsPDF();
+
+    // TITLE
+    doc.setFontSize(20);
+
+    doc.text(
+      'LAPORAN KEUANGAN',
+      14,
+      20
+    );
+
+    doc.setFontSize(12);
+
+    doc.text(
+      `Filter : ${filter.toUpperCase()}`,
+      14,
+      30
+    );
+
+    // TOTAL
+    doc.text(
+      `Total Pendapatan : Rp ${totalPendapatan.toLocaleString()}`,
+      14,
+      40
+    );
+
+    doc.text(
+      `Total Pesanan : ${totalPesanan}`,
+      14,
+      48
+    );
+
+    // TABLE
+    autoTable(doc, {
+
+      startY: 60,
+
+      head: [[
+        'Kode',
+        'Meja',
+        'Tanggal',
+        'Metode',
+        'Total'
+      ]],
+
+      body:
+        filteredHistory.map(
+          (item) => [
+
+            item.kode_pesanan,
+
+            `Meja ${item.nomor_meja}`,
+
+            new Date(
+              item.created_at
+            ).toLocaleString('id-ID'),
+
+            item.metode_pembayaran,
+
+            `Rp ${Number(
+              item.total_harga
+            ).toLocaleString()}`
+
+          ]
+        )
+
+    });
+
+    // MENU TERLARIS
+    let lastY =
+      doc.lastAutoTable.finalY + 15;
+
+    doc.setFontSize(16);
+
+    doc.text(
+      'Menu Terlaris',
+      14,
+      lastY
+    );
+
+    autoTable(doc, {
+
+      startY: lastY + 5,
+
+      head: [[
+        'Ranking',
+        'Menu',
+        'Total Terjual'
+      ]],
+
+      body:
+        menuTerlaris.map(
+          (menu, index) => [
+
+            `#${index + 1}`,
+
+            menu.nama,
+
+            `${menu.total}x`
+
+          ]
+        )
+
+    });
+
+    // SAVE
+    doc.save(
+      `laporan-${filter}.pdf`
+    );
+
+  };
+
+  // =========================
   // LOADING
+  // =========================
+
   if (loading) {
 
     return (
@@ -294,153 +655,119 @@ const HalamanLaporanAdmin = () => {
     <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
 
       {/* HEADER */}
-      <div className="mb-10">
+      <div className="flex flex-wrap items-center justify-between gap-5 mb-10">
 
-        <h1 className="text-4xl font-black text-[#002366] mb-2">
+        <div>
 
-          Laporan <span className="text-[#FF8C00]">Penjualan</span>
+          <h1 className="text-4xl font-black text-[#002366]">
 
-        </h1>
+            Laporan <span className="text-[#FF8C00]">Penjualan</span>
 
-        <p className="text-gray-500">
+          </h1>
 
-          Statistik penjualan kios.
+          <p className="text-gray-500 mt-2">
 
-        </p>
+            Statistik penjualan kios.
+
+          </p>
+
+        </div>
+
+        {/* DOWNLOAD */}
+        <button
+          onClick={downloadPDF}
+          className="bg-[#FF8C00] hover:bg-orange-600 text-white px-6 py-4 rounded-2xl font-black shadow-lg transition-all"
+        >
+
+          Download Laporan
+
+        </button>
 
       </div>
 
       {/* FILTER */}
-      <div className="flex gap-3 mb-10">
+      <div className="flex flex-wrap gap-3 mb-10">
 
-        <button
-          onClick={() =>
-            setFilter('hari')
-          }
-          className={`px-5 py-3 rounded-2xl font-black ${
-            filter === 'hari'
-              ? 'bg-[#002366] text-white'
-              : 'bg-white'
-          }`}
-        >
+        {[
+          'hari',
+          'minggu',
+          'bulan',
+          'tahun'
+        ].map((item) => (
 
-          Hari
+          <button
+            key={item}
+            onClick={() =>
+              setFilter(item)
+            }
+            className={`px-5 py-3 rounded-2xl font-black capitalize
 
-        </button>
+            ${
+              filter === item
 
-        <button
-          onClick={() =>
-            setFilter('minggu')
-          }
-          className={`px-5 py-3 rounded-2xl font-black ${
-            filter === 'minggu'
-              ? 'bg-[#002366] text-white'
-              : 'bg-white'
-          }`}
-        >
+                ? 'bg-[#002366] text-white'
 
-          Minggu
+                : 'bg-white text-gray-500'
+            }`}
+          >
 
-        </button>
+            {item}
 
-        <button
-          onClick={() =>
-            setFilter('bulan')
-          }
-          className={`px-5 py-3 rounded-2xl font-black ${
-            filter === 'bulan'
-              ? 'bg-[#002366] text-white'
-              : 'bg-white'
-          }`}
-        >
+          </button>
 
-          Bulan
-
-        </button>
+        ))}
 
       </div>
 
-      {/* STATISTIK */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      {/* CARD */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
+        <div className="bg-white rounded-[35px] p-7 shadow-sm">
 
-          <p className="text-gray-400 text-sm mb-2">
+          <p className="text-gray-400 mb-2">
 
             Pendapatan
 
           </p>
 
-          <h2 className="text-3xl font-black text-[#002366]">
+          <h1 className="text-4xl font-black text-[#002366]">
 
             Rp {totalPendapatan.toLocaleString()}
 
-          </h2>
+          </h1>
 
         </div>
 
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
+        <div className="bg-white rounded-[35px] p-7 shadow-sm">
 
-          <p className="text-gray-400 text-sm mb-2">
+          <p className="text-gray-400 mb-2">
 
-            Pesanan
+            Total Pesanan
 
           </p>
 
-          <h2 className="text-3xl font-black text-[#FF8C00]">
+          <h1 className="text-4xl font-black text-[#FF8C00]">
 
             {totalPesanan}
 
-          </h2>
-
-        </div>
-
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-
-          <p className="text-gray-400 text-sm mb-2">
-
-            Menu Aktif
-
-          </p>
-
-          <h2 className="text-3xl font-black text-green-500">
-
-            {menuAktif}
-
-          </h2>
-
-        </div>
-
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-
-          <p className="text-gray-400 text-sm mb-2">
-
-            Menu Nonaktif
-
-          </p>
-
-          <h2 className="text-3xl font-black text-red-500">
-
-            {menuNonaktif}
-
-          </h2>
+          </h1>
 
         </div>
 
       </div>
 
-      {/* CHART */}
+      {/* GRAFIK */}
       <div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
 
         <h2 className="text-2xl font-black text-[#002366] mb-8">
 
-          Grafik Penjualan
+          Grafik Keuangan
 
         </h2>
 
         <ResponsiveContainer
           width="100%"
-          height={300}
+          height={350}
         >
 
           <LineChart data={chartData}>
@@ -467,7 +794,7 @@ const HalamanLaporanAdmin = () => {
       </div>
 
       {/* MENU TERLARIS */}
-      <div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
+      <div className="bg-white rounded-[35px] p-8 shadow-sm">
 
         <h2 className="text-2xl font-black text-[#002366] mb-8">
 
@@ -485,29 +812,19 @@ const HalamanLaporanAdmin = () => {
                 className="flex items-center justify-between bg-[#f8f9fc] rounded-2xl p-5"
               >
 
-                <div className="flex items-center gap-5">
+                <div>
 
-                  <img
-                    src={menu.img}
-                    alt={menu.nama}
-                    className="w-20 h-20 rounded-2xl object-cover"
-                  />
+                  <h3 className="font-black text-xl text-[#002366]">
 
-                  <div>
+                    {menu.nama}
 
-                    <h3 className="font-black text-xl text-[#002366]">
+                  </h3>
 
-                      {menu.nama}
+                  <p className="text-gray-400">
 
-                    </h3>
+                    Ranking #{index + 1}
 
-                    <p className="text-gray-400">
-
-                      Ranking #{index + 1}
-
-                    </p>
-
-                  </div>
+                  </p>
 
                 </div>
 
