@@ -12,67 +12,53 @@ const PesananAdmin = ({
 
   const navigate = useNavigate();
 
+  // =========================
+  // STATE
+  // =========================
+
   const [meja, setMeja] = useState('');
   const [payMethod, setPayMethod] = useState('Tunai');
   const [loading, setLoading] = useState(false);
 
   // POPUP MEJA
-  const [showMejaPopup, setShowMejaPopup] = useState(false);
+  const [showMejaPopup, setShowMejaPopup] =
+    useState(false);
 
   // PAGINATION
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] =
+    useState(1);
 
-  // TOTAL PAGE
-  const [maxPage, setMaxPage] = useState(1);
+  const [maxPage] = useState(5);
 
   // MEJA TERPAKAI
-  const [usedTables, setUsedTables] = useState([]);
+  const [usedTables, setUsedTables] =
+    useState([]);
 
+  // =========================
   // FETCH MEJA DIPAKAI
+  // =========================
+
   const fetchUsedTables = async () => {
 
-    const { data } = await supabase
-      .from('history_pesanan')
-      .select('nomor_meja')
-      .eq('status', 'Diproses');
+    try {
 
-    const mejaDipakai =
-      data?.map((item) => item.nomor_meja) || [];
+      const { data } = await supabase
+        .from('history_pesanan')
+        .select('nomor_meja')
+        .eq('status', 'Diproses');
 
-    setUsedTables(mejaDipakai);
+      const mejaDipakai =
+        data?.map((item) =>
+          Number(item.nomor_meja)
+        ) || [];
 
-    // AUTO PINDAH KE PAGE YANG MASIH ADA MEJA
-    let halamanKosong = 1;
+      setUsedTables(mejaDipakai);
 
-    for (let page = 1; page <= 10; page++) {
+    } catch (error) {
 
-      const start = (page - 1) * 20 + 1;
-
-      const semuaTerpakai =
-        Array.from(
-          { length: 20 },
-          (_, i) => start + i
-        ).every((nomor) =>
-          mejaDipakai.includes(nomor)
-        );
-
-      if (!semuaTerpakai) {
-
-        halamanKosong = page;
-
-        break;
-
-      }
+      console.log(error);
 
     }
-
-    setCurrentPage(halamanKosong);
-
-    // TOTAL PAGE
-    const totalPage =
-      Math.ceil(100 / 20);
-
-    setMaxPage(totalPage);
 
   };
 
@@ -82,18 +68,27 @@ const PesananAdmin = ({
 
   }, []);
 
-  // ITEM CART
-  const cartItems = Object.keys(cart).filter(
-    (id) => cart[id] > 0
-  );
+  // =========================
+  // CART ITEMS
+  // =========================
 
+  const cartItems =
+    Object.keys(cart).filter(
+      (id) => cart[id] > 0
+    );
+
+  // =========================
   // TOTAL HARGA
+  // =========================
+
   let totalHarga = 0;
 
   cartItems.forEach((id) => {
 
     const m = menu.find(
-      (item) => Number(item.id) === Number(id)
+      (item) =>
+        Number(item.id) ===
+        Number(id)
     );
 
     if (m) {
@@ -106,7 +101,10 @@ const PesananAdmin = ({
 
   });
 
+  // =========================
   // GENERATE KODE
+  // =========================
+
   const generateKodePesanan = () => {
 
     return `INV-${crypto
@@ -116,30 +114,34 @@ const PesananAdmin = ({
 
   };
 
+  // =========================
   // PROSES PESANAN
+  // =========================
+
   const handleProsesPesanan = async () => {
 
-    if (!meja || cartItems.length === 0) {
+    if (
+      !meja ||
+      cartItems.length === 0
+    ) {
 
       toast.error(
-        'Pilih menu dan isi nomor meja'
+        'Pilih meja dan menu terlebih dahulu!'
       );
 
       return;
 
     }
 
-    // CEK MEJA
-    const { data: existingMeja } = await supabase
-      .from('history_pesanan')
-      .select('id')
-      .eq('nomor_meja', Number(meja))
-      .eq('status', 'Diproses');
-
-    if (existingMeja.length > 0) {
+    // CEK ULANG MEJA
+    if (
+      usedTables.includes(
+        Number(meja)
+      )
+    ) {
 
       toast.error(
-        `Meja ${meja} sedang digunakan!`
+        `Meja ${meja} sedang digunakan`
       );
 
       return;
@@ -150,45 +152,47 @@ const PesananAdmin = ({
 
     try {
 
-      // ITEMS
-      const itemsData = cartItems.map((id) => {
+      const itemsData =
+        cartItems.map((id) => {
 
-        const m = menu.find(
-          (item) => Number(item.id) === Number(id)
-        );
+          const m = menu.find(
+            (item) =>
+              Number(item.id) ===
+              Number(id)
+          );
 
-        if (!m) return null;
+          if (!m) return null;
 
-        return {
+          return {
 
-          nama: m.nama,
-          harga: Number(m.harga),
-          qty: Number(cart[id]),
-          subtotal:
-            Number(m.harga) *
-            Number(cart[id])
+            nama: m.nama,
+            harga: Number(m.harga),
+            qty: Number(cart[id]),
+            subtotal:
+              Number(m.harga) *
+              Number(cart[id])
 
-        };
+          };
 
-      }).filter(Boolean);
+        }).filter(Boolean);
 
-      // INSERT
-      const { error } = await supabase
-        .from('history_pesanan')
-        .insert([
-          {
-            kode_pesanan:
-              generateKodePesanan(),
-            nomor_meja:
-              Number(meja),
-            total_harga:
-              Number(totalHarga),
-            metode_pembayaran:
-              payMethod,
-            status: 'Diproses',
-            items: itemsData
-          }
-        ]);
+      const { error } =
+        await supabase
+          .from('history_pesanan')
+          .insert([
+            {
+              kode_pesanan:
+                generateKodePesanan(),
+              nomor_meja:
+                Number(meja),
+              total_harga:
+                Number(totalHarga),
+              metode_pembayaran:
+                payMethod,
+              status: 'Diproses',
+              items: itemsData
+            }
+          ]);
 
       if (error) throw error;
 
@@ -206,7 +210,7 @@ const PesananAdmin = ({
 
       toast.error(
         error.message ||
-        'Gagal menyimpan pesanan'
+        'Gagal memproses pesanan'
       );
 
     } finally {
@@ -258,7 +262,7 @@ const PesananAdmin = ({
 
                 <p className="text-gray-400 italic">
 
-                  Belum ada menu yang dipilih.
+                  Belum ada menu dipilih.
 
                 </p>
 
@@ -268,13 +272,15 @@ const PesananAdmin = ({
 
               cartItems.map((id) => {
 
-                const qty = cart[id];
+                const qty =
+                  cart[id];
 
-                const m = menu.find(
-                  (item) =>
-                    Number(item.id) ===
-                    Number(id)
-                );
+                const m =
+                  menu.find(
+                    (item) =>
+                      Number(item.id) ===
+                      Number(id)
+                  );
 
                 if (!m) return null;
 
@@ -321,7 +327,10 @@ const PesananAdmin = ({
 
                         <button
                           onClick={() =>
-                            updateQty(m.id, -1)
+                            updateQty(
+                              m.id,
+                              -1
+                            )
                           }
                           className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#002366]"
                         >
@@ -338,7 +347,10 @@ const PesananAdmin = ({
 
                         <button
                           onClick={() =>
-                            updateQty(m.id, 1)
+                            updateQty(
+                              m.id,
+                              1
+                            )
                           }
                           className="w-8 h-8 flex items-center justify-center bg-[#002366] text-white rounded-lg shadow-sm font-bold"
                         >
@@ -378,7 +390,7 @@ const PesananAdmin = ({
 
               <h3 className="font-black text-xl text-gray-800 mb-6 border-b pb-4">
 
-                Konfirmasi <span className="text-[#FF8C00]">Meja</span>
+                Konfirmasi <span className="text-[#FF8C00]">Pesanan</span>
 
               </h3>
 
@@ -408,38 +420,58 @@ const PesananAdmin = ({
 
                 </div>
 
-                {/* METODE */}
+                {/* METODE PEMBAYARAN */}
                 <div>
 
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">
 
                     Metode Pembayaran
 
                   </label>
 
-                  <select
-                    value={payMethod}
-                    onChange={(e) =>
-                      setPayMethod(
-                        e.target.value
-                      )
-                    }
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-[#002366] outline-none cursor-pointer"
-                  >
+                  <div className="grid grid-cols-2 gap-3">
 
-                    <option value="Tunai">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPayMethod(
+                          'Tunai'
+                        )
+                      }
+                      className={`py-4 rounded-2xl border-2 font-black transition-all duration-300
 
-                      Tunai / Cash
+                      ${
+                        payMethod === 'Tunai'
+                          ? 'bg-[#002366] text-white border-[#002366] shadow-lg scale-[1.02]'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-[#002366]'
+                      }`}
+                    >
 
-                    </option>
+                      💵 Tunai
 
-                    <option value="QRIS">
+                    </button>
 
-                      QRIS / Transfer
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPayMethod(
+                          'QRIS'
+                        )
+                      }
+                      className={`py-4 rounded-2xl border-2 font-black transition-all duration-300
 
-                    </option>
+                      ${
+                        payMethod === 'QRIS'
+                          ? 'bg-[#FF8C00] text-white border-[#FF8C00] shadow-lg scale-[1.02]'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-[#FF8C00]'
+                      }`}
+                    >
 
-                  </select>
+                      📱 QRIS
+
+                    </button>
+
+                  </div>
 
                 </div>
 
@@ -466,7 +498,9 @@ const PesananAdmin = ({
 
                 {/* BUTTON */}
                 <button
-                  onClick={handleProsesPesanan}
+                  onClick={
+                    handleProsesPesanan
+                  }
                   disabled={
                     !meja ||
                     cartItems.length === 0 ||
@@ -482,8 +516,8 @@ const PesananAdmin = ({
                 >
 
                   {loading
-                    ? 'Sabar, Sedang Memproses...'
-                    : 'Proses Pesanan Sekarang'}
+                    ? 'Memproses...'
+                    : 'Proses Pesanan'}
 
                 </button>
 
@@ -502,7 +536,7 @@ const PesananAdmin = ({
 
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
 
-          <div className="bg-white w-full max-w-4xl rounded-[35px] p-8 shadow-2xl">
+          <div className="bg-white w-full max-w-5xl rounded-[35px] p-8 shadow-2xl">
 
             {/* HEADER */}
             <div className="flex items-center justify-between mb-8">
@@ -536,7 +570,7 @@ const PesananAdmin = ({
 
             </div>
 
-            {/* GRID */}
+            {/* GRID MEJA */}
             <div className="grid grid-cols-5 gap-4">
 
               {Array.from(
@@ -544,30 +578,50 @@ const PesananAdmin = ({
                 (_, i) => {
 
                   const nomor =
-                    (currentPage - 1) * 20 + i + 1;
+                    (currentPage - 1) * 20 +
+                    i +
+                    1;
 
                   const isUsed =
-                    usedTables.includes(
-                      nomor
-                    );
+                    usedTables.includes(nomor);
 
                   return (
 
                     <button
                       key={nomor}
-                      disabled={isUsed}
+
                       onClick={() => {
 
+                        // JIKA MEJA DIPAKAI
+                        if (isUsed) {
+
+                          toast.error(
+                            `Meja ${nomor} sedang digunakan`
+                          );
+
+                          return;
+
+                        }
+
+                        // PILIH MEJA
                         setMeja(nomor);
 
+                        // TUTUP POPUP
                         setShowMejaPopup(false);
 
                       }}
-                      className={`aspect-square rounded-2xl font-black text-xl transition-all shadow-md border-2
-                      
+
+                      className={`aspect-square rounded-2xl font-black text-xl transition-all duration-300 shadow-md border-2
+
                       ${
-                        isUsed
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                        meja === nomor
+
+                          ? 'bg-[#FF8C00] text-white border-[#FF8C00] scale-105 shadow-orange-200'
+
+                          : isUsed
+
+                          ? 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
+
                           : 'bg-gray-700 hover:bg-[#FF8C00] text-white border-gray-700 hover:border-[#FF8C00] hover:scale-105'
                       }`}
                     >
@@ -587,7 +641,9 @@ const PesananAdmin = ({
             <div className="flex items-center justify-between mt-8">
 
               <button
-                disabled={currentPage === 1}
+                disabled={
+                  currentPage === 1
+                }
                 onClick={() =>
                   setCurrentPage(
                     currentPage - 1
@@ -612,7 +668,8 @@ const PesananAdmin = ({
 
               <button
                 disabled={
-                  currentPage === maxPage
+                  currentPage ===
+                  maxPage
                 }
                 onClick={() =>
                   setCurrentPage(
@@ -620,7 +677,8 @@ const PesananAdmin = ({
                   )
                 }
                 className={`px-6 py-3 rounded-2xl font-bold ${
-                  currentPage === maxPage
+                  currentPage ===
+                  maxPage
                     ? 'bg-gray-100 text-gray-300'
                     : 'bg-[#FF8C00] text-white'
                 }`}
