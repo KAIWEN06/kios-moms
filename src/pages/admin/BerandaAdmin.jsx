@@ -26,7 +26,7 @@ const AdminBeranda = () => {
           
           <button 
             className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-[#002366] transition-all w-full sm:w-auto"
-            onClick={() => navigate('/adminProses-pesanan')} // PERBAIKAN: Mengarah ke Proses Pesanan
+            onClick={() => navigate('/admin/proses-pesanan')} // PERBAIKAN: Mengarah ke Proses Pesanan
           >
             Cek Status
           </button>
