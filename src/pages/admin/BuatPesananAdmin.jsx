@@ -217,7 +217,7 @@ const AdminBuatPesanan = ({ cart, updateQty }) => {
 
           <button
             onClick={() =>
-              navigate('/pesanan')
+              navigate('/admin/pesanan')
             }
             className="bg-[#FF8C00] text-white flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all"
           >

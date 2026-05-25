@@ -19,7 +19,7 @@ const AdminBeranda = () => {
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
           <button 
             className="bg-[#FF8C00] text-white px-8 py-3 rounded-full font-semibold hover:scale-105 transition-all w-full sm:w-auto"
-            onClick={() => navigate('/buat-pesanan')}
+            onClick={() => navigate('/admin/buat-pesanan')}
           >
             Mulai Pesan
           </button>

@@ -202,7 +202,7 @@ const PesananAdmin = ({
 
       clearCart();
 
-      navigate('/adminProses-pesanan');
+      navigate('/admin/proses-pesanan');
 
     } catch (error) {
 
