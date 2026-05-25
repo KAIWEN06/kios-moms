@@ -1,44 +1,189 @@
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect
+} from 'react';
+
 import {
   Routes,
   Route,
-  useNavigate,
+  useNavigate
 } from 'react-router-dom';
 
 import { supabase } from "./lib/supabaseClient";
+
+import toast from "react-hot-toast";
+
 import './App.css';
 
-// Protected Route
-import ProtectedRoute from './routes/ProtectedRoute';
+// =========================
+// LAYOUT ADMIN
+// =========================
 
-// Layout
 import AdminLayout from './layouts/admin/LayoutAdmin';
 
-// Pages
-import LoginAdmin from './pages/admin/LoginAdmin';
-import ResetPassword from './pages/admin/ResetPassword';
-import AdminBeranda from './pages/admin/BerandaAdmin';
-import AdminPesanan from './pages/admin/PesananAdmin';
-import AdminProsesPesanan from './pages/admin/AdminProsesPesanan';
-import AdminRiwayatPesanan from './pages/admin/RiwayatPesananAdmin';
-import AdminKelolaMenu from './pages/admin/KelolaMenuAdmin';
-import AdminBuatPesanan from './pages/admin/BuatPesananAdmin';
-import HalamanLaporanAdmin from './pages/admin/HalamanLaporanAdmin';
+// =========================
+// LAYOUT PEMBELI
+// =========================
+
+import LayoutPembeli from './layouts/pembeli/LayoutPembeli';
+
+// =========================
+// AUTH
+// =========================
+
+import LoginAdmin from './pages/admin/adminpages/LoginAdmin';
+
+import ResetPassword from './pages/admin/adminpages/ResetPassword';
+
+import ProtectedRoute from './components/ProtectedRoute';
+
+// =========================
+// ADMIN PAGES
+// =========================
+
+import AdminBeranda from './pages/admin/adminpages/BerandaAdmin';
+
+import AdminPesanan from './pages/admin/adminpages/PesananAdmin';
+
+import AdminProsesPesanan from './pages/admin/adminpages/AdminProsesPesanan';
+
+import AdminRiwayatPesanan from './pages/admin/adminpages/RiwayatPesananAdmin';
+
+import AdminKelolaMenu from './pages/admin/adminpages/KelolaMenuAdmin';
+
+import AdminBuatPesanan from './pages/admin/adminpages/BuatPesananAdmin';
+
+import HalamanLaporanAdmin from './pages/admin/adminpages/HalamanLaporanAdmin';
+
+// =========================
+// PEMBELI PAGES
+// =========================
+
+import BerandaPembeli from './pages/pembeli/BerandaPembeli';
+
+import DaftarMenuPembeli from './pages/pembeli/DaftarMenuPembeli';
+
+import KeranjangPembeli from './pages/pembeli/KeranjangPembeli';
+
+import KonfirmasiPesananPembeli from './pages/pembeli/KonfirmasiPesananPembeli';
+
+import StatusPesananPembeli from './pages/pembeli/StatusPesananPembeli';
+
+import RiwayatPesananPembeli from './pages/pembeli/RiwayatPesananPembeli';
 
 function App() {
 
   const navigate = useNavigate();
 
   // =========================
-  // STATE
+  // STATE UTAMA
   // =========================
 
-  const [menu, setMenu] = useState([]);
-  const [cart, setCart] = useState({});
-  const [activeOrders, setActiveOrders] = useState([]);
-  const [historyOrders, setHistoryOrders] = useState([]);
-  const [occupiedTables, setOccupiedTables] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [menu, setMenu] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  // =========================
+  // CART LOCAL STORAGE
+  // =========================
+
+  const [cart, setCart] =
+    useState(() => {
+
+      const savedCart =
+        localStorage.getItem(
+          "cart"
+        );
+
+      return savedCart
+        ? JSON.parse(savedCart)
+        : {};
+
+    });
+
+  const [activeOrders, setActiveOrders] =
+    useState(() => {
+
+      const saved =
+        localStorage.getItem(
+          "activeOrders"
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : [];
+
+    });
+
+  const [historyOrders, setHistoryOrders] =
+    useState(() => {
+
+      const saved =
+        localStorage.getItem(
+          "historyOrders"
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : [];
+
+    });
+
+  const [occupiedTables, setOccupiedTables] =
+    useState(() => {
+
+      const saved =
+        localStorage.getItem(
+          "occupiedTables"
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : [];
+
+    });
+
+  // =========================
+  // LOCAL STORAGE SAVE
+  // =========================
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(cart)
+    );
+
+  }, [cart]);
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "activeOrders",
+      JSON.stringify(activeOrders)
+    );
+
+  }, [activeOrders]);
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "historyOrders",
+      JSON.stringify(historyOrders)
+    );
+
+  }, [historyOrders]);
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "occupiedTables",
+      JSON.stringify(occupiedTables)
+    );
+
+  }, [occupiedTables]);
 
   // =========================
   // FETCH MENU
@@ -48,16 +193,23 @@ function App() {
 
     try {
 
-      const { data, error } = await supabase
+      const {
+        data,
+        error
+      } = await supabase
         .from('menu')
         .select('*')
-        .order('nama', { ascending: true });
+        .order(
+          'nama',
+          {
+            ascending: true
+          }
+        );
 
-      if (error) throw error;
+      if (error)
+        throw error;
 
-      if (data) {
-        setMenu(data);
-      }
+      setMenu(data || []);
 
     } catch (error) {
 
@@ -66,79 +218,133 @@ function App() {
         error.message
       );
 
+      toast.error(
+        "Gagal memuat menu"
+      );
+
     } finally {
 
       setLoading(false);
 
     }
+
   };
 
   useEffect(() => {
+
     fetchMenu();
+
   }, []);
 
   // =========================
   // UPDATE QTY
   // =========================
 
-  const updateQty = (id, delta) => {
+  const updateQty = (
+    id,
+    delta
+  ) => {
 
-    setCart(prev => {
+    setCart((prev) => {
 
-      const currentQty = prev[id] || 0;
+      const currentQty =
+        prev[id] || 0;
 
-      const newQty = Math.max(
-        0,
-        currentQty + delta
-      );
+      const newQty =
+        Math.max(
+          0,
+          currentQty + delta
+        );
+
+      if (newQty === 0) {
+
+        const updated =
+          { ...prev };
+
+        delete updated[id];
+
+        return updated;
+
+      }
 
       return {
+
         ...prev,
+
         [id]: newQty
+
       };
+
     });
+
   };
 
   // =========================
   // CLEAR CART
   // =========================
 
-  const clearCart = () => setCart({});
+  const clearCart = () => {
+
+    setCart({});
+
+    localStorage.removeItem(
+      "cart"
+    );
+
+  };
 
   // =========================
   // UPDATE STOK MENU
   // =========================
 
-  const updateStokMenu = async (
-    id,
-    status
-  ) => {
+  const updateStokMenu =
+    async (
+      id,
+      status
+    ) => {
 
-    try {
+      try {
 
-      const { error } = await supabase
-        .from('menu')
-        .update({
-          stok: status
-        })
-        .eq('id', id);
+        const {
+          error
+        } = await supabase
+          .from('menu')
+          .update({
 
-      if (error) throw error;
+            stok: status
 
-      await fetchMenu();
+          })
+          .eq(
+            'id',
+            id
+          );
 
-    } catch (error) {
+        if (error)
+          throw error;
 
-      console.error(
-        'Gagal update stok:',
-        error.message
-      );
+        await fetchMenu();
 
-    }
-  };
+        toast.success(
+          "Stok menu berhasil diperbarui"
+        );
+
+      } catch (error) {
+
+        console.error(
+          'Gagal update stok:',
+          error.message
+        );
+
+        toast.error(
+          "Gagal update stok menu"
+        );
+
+      }
+
+    };
 
   // =========================
-  // PINDAH KE PROSES
+  // PINDAHKAN KE PROSES
   // =========================
 
   const pindahkanKeProses = (
@@ -149,34 +355,52 @@ function App() {
     cartItems
   ) => {
 
-    const mejaNum = parseInt(meja);
+    const mejaNum =
+      parseInt(meja);
 
     if (
-      occupiedTables.includes(mejaNum)
+      occupiedTables.includes(
+        mejaNum
+      )
     ) {
 
-      return alert(
-        `Meja No. ${mejaNum} sedang digunakan!`
+      toast.error(
+        `Meja No. ${mejaNum} sedang digunakan`
       );
+
+      return;
+
     }
 
     const itemsOrdered =
-      cartItems.map(id => {
+      cartItems.map((id) => {
 
-        const m = menu.find(
-          item =>
-            String(item.id) === String(id)
-        );
+        const m =
+          menu.find(
+            (item) =>
+              String(item.id) ===
+              String(id)
+          );
 
         return {
-          nama: m?.nama || "Menu",
-          qty: cart[id],
+
+          nama:
+            m?.nama ||
+            "Menu",
+
+          qty:
+            cart[id],
+
           subtotal:
-            (m?.harga || 0) * cart[id]
+            (m?.harga || 0) *
+            cart[id]
+
         };
+
       });
 
     const newOrder = {
+
       id:
         "KM-" +
         Date.now()
@@ -184,105 +408,136 @@ function App() {
           .slice(-6),
 
       meja: mejaNum,
+
       items: itemsOrdered,
+
       total: totalHarga,
+
       status: "diproses",
+
       metode: payMethod,
+
+      email: email,
+
       waktu:
-        new Date().toLocaleTimeString()
+        new Date()
+          .toLocaleTimeString()
+
     };
 
     setActiveOrders([
+
       ...activeOrders,
+
       newOrder
+
     ]);
 
     setOccupiedTables([
+
       ...occupiedTables,
+
       mejaNum
+
     ]);
 
-    setCart({});
+    clearCart();
+
+    toast.success(
+      "Pesanan berhasil diproses"
+    );
 
     navigate(
       '/admin/proses-pesanan'
     );
+
   };
 
   // =========================
   // UBAH KE SELESAI
   // =========================
 
-  const ubahKeSelesai = (idx) => {
+  const ubahKeSelesai =
+    (idx) => {
 
-    const order =
-      activeOrders[idx];
+      const order =
+        activeOrders[idx];
 
-    setHistoryOrders([
-      ...historyOrders,
-      {
-        ...order,
-        status: 'selesai'
-      }
-    ]);
+      setHistoryOrders([
 
-    setOccupiedTables(
-      occupiedTables.filter(
-        m => m !== order.meja
-      )
-    );
+        ...historyOrders,
 
-    setActiveOrders(
-      activeOrders.filter(
-        (_, i) => i !== idx
-      )
-    );
+        {
 
-    alert("Pesanan selesai!");
+          ...order,
 
-    navigate(
-      '/admin/riwayat-pesanan'
-    );
-  };
+          status: 'selesai'
 
-// =========================
-// AUTH LISTENER
-// =========================
-
-useEffect(() => {
-
-  const {
-    data: listener
-  } = supabase.auth
-    .onAuthStateChange(
-      (_event, session) => {
-
-        const currentPath =
-          window.location.pathname;
-
-        // JANGAN REDIRECT
-        // SAAT RESET PASSWORD
-
-        if (
-          !session &&
-          currentPath !==
-            '/reset-password'
-        ) {
-
-          navigate(
-            '/admin/login'
-          );
         }
-      }
+
+      ]);
+
+      setOccupiedTables(
+
+        occupiedTables.filter(
+          (m) =>
+            m !== order.meja
+        )
+
+      );
+
+      setActiveOrders(
+
+        activeOrders.filter(
+          (_, i) =>
+            i !== idx
+        )
+
+      );
+
+      toast.success(
+        "Pesanan selesai"
+      );
+
+      navigate(
+        '/admin/riwayat-pesanan'
+      );
+
+    };
+
+  // =========================
+  // DATA KERANJANG
+  // =========================
+
+  const keranjangPembeli =
+    menu
+      .filter(
+        (item) =>
+          cart[item.id] > 0
+      )
+      .map((item) => ({
+
+        ...item,
+
+        qty: cart[item.id]
+
+      }));
+
+  const totalHargaPembeli =
+    keranjangPembeli.reduce(
+
+      (total, item) =>
+
+        total +
+        (
+          Number(item.harga) *
+          Number(item.qty)
+        ),
+
+      0
+
     );
 
-  return () => {
-
-    listener.subscription
-      .unsubscribe();
-  };
-
-}, [navigate]);
   // =========================
   // LOADING
   // =========================
@@ -296,7 +551,9 @@ useEffect(() => {
         Memuat Data Kios Mom's...
 
       </div>
+
     );
+
   }
 
   return (
@@ -306,13 +563,8 @@ useEffect(() => {
       <Routes>
 
         {/* ========================= */}
-        {/* LOGIN */}
+        {/* AUTH */}
         {/* ========================= */}
-
-        <Route
-          path="/"
-          element={<LoginAdmin />}
-        />
 
         <Route
           path="/admin/login"
@@ -325,7 +577,79 @@ useEffect(() => {
         />
 
         {/* ========================= */}
-        {/* BERANDA ADMIN */}
+        {/* ROUTE PEMBELI */}
+        {/* ========================= */}
+
+        <Route
+          element={<LayoutPembeli />}
+        >
+
+          <Route
+            path="/"
+            element={
+              <BerandaPembeli />
+            }
+          />
+
+          <Route
+            path="/daftar-menu"
+            element={
+
+              <DaftarMenuPembeli
+                menu={menu}
+                cart={cart}
+                updateQty={updateQty}
+              />
+
+            }
+          />
+
+          <Route
+            path="/keranjang"
+            element={
+
+              <KeranjangPembeli
+                keranjang={keranjangPembeli}
+                updateQty={updateQty}
+                hapusMenu={(id) =>
+                  updateQty(id, -999)
+                }
+              />
+
+            }
+          />
+
+          <Route
+            path="/konfirmasi-pesanan"
+            element={
+
+              <KonfirmasiPesananPembeli
+                keranjang={keranjangPembeli}
+                totalHarga={totalHargaPembeli}
+                clearCart={clearCart}
+              />
+
+            }
+          />
+
+          <Route
+            path="/status-pesanan"
+            element={
+              <StatusPesananPembeli />
+            }
+          />
+
+          <Route
+            path="/riwayat-pesanan-pembeli"
+            element={
+              <RiwayatPesananPembeli />
+            }
+          />
+
+        </Route>
+
+        {/* ========================= */}
+        {/* ROUTE ADMIN */}
         {/* ========================= */}
 
         <Route
@@ -334,16 +658,14 @@ useEffect(() => {
             <ProtectedRoute>
 
               <AdminLayout>
+
                 <AdminBeranda />
+
               </AdminLayout>
 
             </ProtectedRoute>
           }
         />
-
-        {/* ========================= */}
-        {/* BUAT PESANAN */}
-        {/* ========================= */}
 
         <Route
           path="/admin/buat-pesanan"
@@ -364,10 +686,6 @@ useEffect(() => {
           }
         />
 
-        {/* ========================= */}
-        {/* PESANAN */}
-        {/* ========================= */}
-
         <Route
           path="/admin/pesanan"
           element={
@@ -380,9 +698,7 @@ useEffect(() => {
                   menu={menu}
                   updateQty={updateQty}
                   clearCart={clearCart}
-                  pindahkanKeProses={
-                    pindahkanKeProses
-                  }
+                  pindahkanKeProses={pindahkanKeProses}
                 />
 
               </AdminLayout>
@@ -390,10 +706,6 @@ useEffect(() => {
             </ProtectedRoute>
           }
         />
-
-        {/* ========================= */}
-        {/* PROSES PESANAN */}
-        {/* ========================= */}
 
         <Route
           path="/admin/proses-pesanan"
@@ -403,12 +715,8 @@ useEffect(() => {
               <AdminLayout>
 
                 <AdminProsesPesanan
-                  activeOrders={
-                    activeOrders
-                  }
-                  ubahKeSelesai={
-                    ubahKeSelesai
-                  }
+                  activeOrders={activeOrders}
+                  ubahKeSelesai={ubahKeSelesai}
                 />
 
               </AdminLayout>
@@ -416,10 +724,6 @@ useEffect(() => {
             </ProtectedRoute>
           }
         />
-
-        {/* ========================= */}
-        {/* RIWAYAT */}
-        {/* ========================= */}
 
         <Route
           path="/admin/riwayat-pesanan"
@@ -429,9 +733,7 @@ useEffect(() => {
               <AdminLayout>
 
                 <AdminRiwayatPesanan
-                  historyOrders={
-                    historyOrders
-                  }
+                  historyOrders={historyOrders}
                 />
 
               </AdminLayout>
@@ -439,10 +741,6 @@ useEffect(() => {
             </ProtectedRoute>
           }
         />
-
-        {/* ========================= */}
-        {/* KELOLA MENU */}
-        {/* ========================= */}
 
         <Route
           path="/admin/kelola-menu"
@@ -465,10 +763,6 @@ useEffect(() => {
           }
         />
 
-        {/* ========================= */}
-        {/* LAPORAN */}
-        {/* ========================= */}
-
         <Route
           path="/admin/laporan"
           element={
@@ -487,7 +781,9 @@ useEffect(() => {
       </Routes>
 
     </div>
+
   );
+
 }
 
 export default App;
