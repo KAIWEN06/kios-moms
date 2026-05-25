@@ -7,7 +7,7 @@ const FooterPembeli = () => {
     <footer
       className="
       bg-[#002366]
-      mt-20
+      mt-14
       overflow-hidden
       "
     >
@@ -18,7 +18,7 @@ const FooterPembeli = () => {
         mx-auto
         px-4
         lg:px-10
-        py-14
+        py-8
         "
       >
 
@@ -31,7 +31,7 @@ const FooterPembeli = () => {
           grid
           grid-cols-1
           md:grid-cols-2
-          gap-10
+          gap-8
           "
         >
 
@@ -43,7 +43,8 @@ const FooterPembeli = () => {
 
             <h1
               className="
-              text-4xl
+              text-3xl
+              md:text-4xl
               font-black
               text-white
               "
@@ -62,9 +63,11 @@ const FooterPembeli = () => {
             <p
               className="
               text-white/70
-              mt-5
+              mt-3
               leading-relaxed
-              text-base
+              text-sm
+              md:text-base
+              max-w-[550px]
               "
             >
 
@@ -85,10 +88,11 @@ const FooterPembeli = () => {
 
             <h2
               className="
-              text-2xl
+              text-xl
+              md:text-2xl
               font-black
               text-white
-              mb-5
+              mb-4
               "
             >
 
@@ -100,9 +104,11 @@ const FooterPembeli = () => {
               className="
               flex
               flex-col
-              gap-3
+              gap-2
               text-white/70
               font-medium
+              text-sm
+              md:text-base
               "
             >
 
@@ -145,8 +151,8 @@ const FooterPembeli = () => {
           className="
           border-t
           border-white/10
-          mt-12
-          pt-6
+          mt-8
+          pt-4
           "
         >
 
@@ -157,14 +163,15 @@ const FooterPembeli = () => {
             md:flex-row
             items-center
             justify-between
-            gap-4
+            gap-2
             "
           >
 
             <p
               className="
               text-white/60
-              text-sm
+              text-xs
+              md:text-sm
               text-center
               md:text-left
               "
@@ -177,7 +184,8 @@ const FooterPembeli = () => {
             <p
               className="
               text-white/40
-              text-sm
+              text-xs
+              md:text-sm
               text-center
               "
             >
