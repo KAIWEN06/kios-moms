@@ -28,16 +28,25 @@ const ResetPassword = () => {
     setConfirmPassword] =
     useState('');
 
-  const [showPassword,
-    setShowPassword] =
-    useState(false);
+  const [
+  showPassword,
+  setShowPassword
+] = useState(false);
 
-  const [showConfirmPassword,
-    setShowConfirmPassword] =
-    useState(false);
+const [
+  showConfirmPassword,
+  setShowConfirmPassword
+] = useState(false);
 
   const [loading, setLoading] =
     useState(false);
+
+  // COOLDOWN
+  const [cooldown, setCooldown] =
+    useState(false);
+
+  const [countdown, setCountdown] =
+    useState(0);
 
   // =========================
   // ERROR MESSAGE
@@ -77,7 +86,7 @@ const ResetPassword = () => {
         if (!session) {
 
           toast.error(
-            'Link reset tidak valid!'
+            'Link reset tidak valid atau sudah expired!'
           );
 
           navigate('/admin/login');
@@ -89,6 +98,33 @@ const ResetPassword = () => {
   }, [navigate]);
 
   // =========================
+  // COUNTDOWN TIMER
+  // =========================
+
+  useEffect(() => {
+
+    let timer;
+
+    if (countdown > 0) {
+
+      timer = setInterval(() => {
+
+        setCountdown(
+          prev => prev - 1
+        );
+
+      }, 1000);
+
+    } else {
+
+      setCooldown(false);
+    }
+
+    return () => clearInterval(timer);
+
+  }, [countdown]);
+
+  // =========================
   // HANDLE UPDATE PASSWORD
   // =========================
 
@@ -97,10 +133,11 @@ const ResetPassword = () => {
 
       e.preventDefault();
 
+      // CEGAH SPAM
       if (loading || cooldown) {
 
         toast.error(
-          'Tunggu beberapa saat!'
+          `Tunggu ${countdown} detik lagi!`
         );
 
         return;
@@ -191,6 +228,11 @@ const ResetPassword = () => {
 
             });
 
+        console.log(
+          'UPDATE PASSWORD RESPONSE:',
+          error
+        );
+
         if (error) {
 
           toast.error(
@@ -208,17 +250,29 @@ const ResetPassword = () => {
           'Password berhasil diubah!'
         );
 
+        // AKTIFKAN COOLDOWN
+        setCooldown(true);
+        setCountdown(5);
+
+        // RESET FORM
+        setPassword('');
+        setConfirmPassword('');
+
         setTimeout(() => {
 
-          navigate('/admin/login'); 
+          navigate('/admin/login');
 
         }, 1500);
 
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          'RESET PASSWORD ERROR:',
+          error
+        );
 
         toast.error(
+          error.message ||
           'Terjadi kesalahan!'
         );
 
@@ -279,9 +333,10 @@ const ResetPassword = () => {
 
             </label>
 
-            <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
+            <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3">
 
               <input
+                autoComplete="new-password"
                 type={
                   showPassword
                     ? 'text'
@@ -382,9 +437,10 @@ const ResetPassword = () => {
 
             </label>
 
-            <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
+            <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3">
 
               <input
+                autoComplete="new-password"
                 type={
                   showConfirmPassword
                     ? 'text'
@@ -479,13 +535,15 @@ const ResetPassword = () => {
           {/* BUTTON */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-[#FF8C00] hover:bg-orange-500 disabled:opacity-70 transition-all duration-300 text-white font-semibold py-3 rounded-xl shadow-lg hover:scale-[1.02]"
+            disabled={loading || cooldown}
+            className="w-full bg-[#FF8C00] hover:bg-orange-500 disabled:opacity-70 transition-all duration-300 text-white font-semibold py-3 rounded-xl shadow-lg"
           >
 
             {loading
               ? 'Memproses...'
-              : 'Simpan Password'}
+              : cooldown
+                ? `Tunggu ${countdown}s`
+                : 'Simpan Password'}
 
           </button>
 

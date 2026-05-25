@@ -33,6 +33,13 @@ const LoginAdmin = () => {
   const [loading, setLoading] =
     useState(false);
 
+  // COOLDOWN RESET PASSWORD
+  const [cooldown, setCooldown] =
+    useState(false);
+
+  const [countdown, setCountdown] =
+    useState(0);
+
   // =========================
   // ERROR MESSAGE
   // =========================
@@ -85,6 +92,33 @@ const LoginAdmin = () => {
     checkSession();
 
   }, [navigate]);
+
+  // =========================
+  // COUNTDOWN TIMER
+  // =========================
+
+  useEffect(() => {
+
+    let timer;
+
+    if (countdown > 0) {
+
+      timer = setInterval(() => {
+
+        setCountdown(
+          prev => prev - 1
+        );
+
+      }, 1000);
+
+    } else {
+
+      setCooldown(false);
+    }
+
+    return () => clearInterval(timer);
+
+  }, [countdown]);
 
   // =========================
   // HANDLE LOGIN
@@ -184,8 +218,17 @@ const LoginAdmin = () => {
   const handleResetPassword =
     async () => {
 
-      if (loading) return;
+      // COOLDOWN
+      if (loading || cooldown) {
 
+        toast.error(
+          `Tunggu ${countdown} detik lagi!`
+        );
+
+        return;
+      }
+
+      // VALIDASI EMAIL
       if (!email) {
 
         toast.error(
@@ -209,7 +252,25 @@ const LoginAdmin = () => {
               }
             );
 
+        // HANDLE ERROR
         if (error) {
+
+          // RATE LIMIT
+          if (
+            error.status === 429
+          ) {
+
+            toast.error(
+              'Terlalu banyak request. Tunggu 60 detik!'
+            );
+
+            setCooldown(true);
+            setCountdown(60);
+
+            setLoading(false);
+
+            return;
+          }
 
           toast.error(
             getErrorMessage(
@@ -226,19 +287,19 @@ const LoginAdmin = () => {
           'Link reset password berhasil dikirim!'
         );
 
+        // AKTIFKAN COOLDOWN
         setCooldown(true);
-
-        setTimeout(() => {
-
-          setCooldown(false);
-
-        }, 60000);
+        setCountdown(60);
 
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          'RESET PASSWORD ERROR:',
+          error
+        );
 
         toast.error(
+          error.message ||
           'Terjadi kesalahan!'
         );
 
@@ -301,24 +362,6 @@ const LoginAdmin = () => {
 
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
 
-              {/* EMAIL SVG */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-5 h-5 mr-3 opacity-70"
-              >
-
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91A2.25 2.25 0 012.25 6.993V6.75"
-                />
-
-              </svg>
-
               <input
                 type="email"
                 autoComplete="off"
@@ -346,24 +389,6 @@ const LoginAdmin = () => {
             </label>
 
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
-
-              {/* LOCK SVG */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-5 h-5 mr-3 opacity-70"
-              >
-
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-1.5 0h12a1.5 1.5 0 011.5 1.5v7.5a1.5 1.5 0 01-1.5 1.5h-12A1.5 1.5 0 014.5 19.5v-7.5a1.5 1.5 0 011.5-1.5z"
-                />
-
-              </svg>
 
               <input
                 autoComplete="new-password"
@@ -463,19 +488,22 @@ const LoginAdmin = () => {
 
             <button
               type="button"
+              disabled={cooldown}
               onClick={
                 handleResetPassword
               }
-              className="text-sm text-[#FF8C00] hover:underline"
+              className="text-sm text-[#FF8C00] hover:underline disabled:opacity-50"
             >
 
-              Lupa Password?
+              {cooldown
+                ? `Tunggu ${countdown}s`
+                : 'Lupa Password?'}
 
             </button>
 
           </div>
 
-          {/* BUTTON */}
+          {/* BUTTON LOGIN */}
           <button
             type="submit"
             disabled={loading}
