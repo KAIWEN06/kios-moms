@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import { supabase } from "../../config/supabase";
 
 export default function BerandaPembeli() {
 
   const navigate = useNavigate();
 
-  const [menuTerlaris, setMenuTerlaris] = useState([]);
+  const [menuTerlaris, setMenuTerlaris] =
+    useState([]);
+
+  /* ======================================================
+     LOAD MENU TERLARIS
+  ====================================================== */
 
   useEffect(() => {
 
@@ -14,31 +21,137 @@ export default function BerandaPembeli() {
 
   }, []);
 
-  const getMenuTerlaris = async () => {
+  /* ======================================================
+     GET MENU TERLARIS
+  ====================================================== */
 
-    const { data, error } = await supabase
+  const getMenuTerlaris =
+    async () => {
 
-      .from("pesanan")
+      try {
 
-      .select("*")
+        /* ======================================================
+           AMBIL SEMUA PESANAN SELESAI / DIPROSES
+        ====================================================== */
 
-      .eq("is_checkout", true)
+        const {
+          data,
+          error
+        } = await supabase
+          .from("pesanan")
+          .select("items")
+          .eq(
+            "is_checkout",
+            true
+          );
 
-      .order("qty", { ascending: false })
+        if (error) {
 
-      .limit(4);
+          console.log(error);
 
-    if (error) {
+          return;
 
-      console.log(error);
+        }
 
-      return;
+        /* ======================================================
+           GABUNGKAN SEMUA ITEMS
+        ====================================================== */
 
-    }
+        let allItems = [];
 
-    setMenuTerlaris(data || []);
+        data.forEach((pesanan) => {
 
-  };
+          let items = [];
+
+          try {
+
+            items =
+              typeof pesanan.items ===
+              "string"
+
+                ? JSON.parse(
+                    pesanan.items
+                  )
+
+                : pesanan.items;
+
+          } catch {
+
+            items = [];
+
+          }
+
+          allItems.push(...items);
+
+        });
+
+        /* ======================================================
+           HITUNG TOTAL TERJUAL
+        ====================================================== */
+
+        const groupedMenu = {};
+
+        allItems.forEach((item) => {
+
+          const nama =
+            item.nama;
+
+          if (
+            !groupedMenu[nama]
+          ) {
+
+            groupedMenu[nama] = {
+
+              ...item,
+
+              totalQty:
+                Number(
+                  item.qty
+                ) || 0,
+
+            };
+
+          } else {
+
+            groupedMenu[
+              nama
+            ].totalQty +=
+              Number(
+                item.qty
+              ) || 0;
+
+          }
+
+        });
+
+        /* ======================================================
+           SORT MENU TERLARIS
+        ====================================================== */
+
+        const sortedMenu =
+          Object.values(
+            groupedMenu
+          )
+
+            .sort(
+              (a, b) =>
+                b.totalQty -
+                a.totalQty
+            )
+
+            .slice(0, 4);
+
+        setMenuTerlaris(
+          sortedMenu
+        );
+
+      } catch (err) {
+
+        console.log(err);
+
+      }
+
+    };
 
   return (
 
@@ -93,6 +206,7 @@ export default function BerandaPembeli() {
               Pemesanan
               <br />
               Makanan
+
               <span className="text-[#FF8C00]">
 
                 {" "}Online
@@ -111,8 +225,10 @@ export default function BerandaPembeli() {
               "
             >
 
-              Pesan makanan favorit Anda dengan cepat,
-              mudah, dan praktis langsung dari meja Anda.
+              Pesan makanan favorit Anda
+              dengan cepat, mudah,
+              dan praktis langsung
+              dari meja Anda.
 
             </p>
 
@@ -122,7 +238,9 @@ export default function BerandaPembeli() {
 
               <button
                 onClick={() =>
-                  navigate("/daftar-menu")
+                  navigate(
+                    "/daftar-menu"
+                  )
                 }
                 className="
                 bg-[#FF8C00]
@@ -143,7 +261,9 @@ export default function BerandaPembeli() {
 
               <button
                 onClick={() =>
-                  navigate("/status-pesanan")
+                  navigate(
+                    "/status-pesanan"
+                  )
                 }
                 className="
                 bg-[#002366]
@@ -212,132 +332,155 @@ export default function BerandaPembeli() {
             "
           >
 
-            {menuTerlaris.map((item, index) => (
-
-              <div
-                key={item.id}
-                className="
-                bg-white
-                rounded-[30px]
-                overflow-hidden
-                shadow-sm
-                w-full
-                relative
-                "
-              >
-
-                {/* BADGE */}
+            {menuTerlaris.map(
+              (
+                item,
+                index
+              ) => (
 
                 <div
+                  key={index}
                   className="
-                  absolute
-                  top-4
-                  left-4
-                  bg-[#FF8C00]
-                  text-white
-                  px-4
-                  py-2
-                  rounded-2xl
-                  font-black
-                  text-sm
-                  z-10
+                  bg-white
+                  rounded-[30px]
+                  overflow-hidden
+                  shadow-sm
+                  w-full
+                  relative
                   "
                 >
 
-                  #{index + 1}
+                  {/* BADGE */}
 
-                </div>
-
-                {/* IMAGE */}
-
-                <img
-                  src={item.gambar}
-                  alt={item.nama}
-                  className="
-                  w-full
-                  h-[260px]
-                  object-cover
-                  "
-                />
-
-                {/* CONTENT */}
-
-                <div className="p-6">
-
-                  <h1
+                  <div
                     className="
-                    text-3xl
+                    absolute
+                    top-4
+                    left-4
+                    bg-[#FF8C00]
+                    text-white
+                    px-4
+                    py-2
+                    rounded-2xl
                     font-black
-                    text-[#002366]
+                    text-sm
+                    z-10
                     "
                   >
 
-                    {item.nama}
+                    #{index + 1}
 
-                  </h1>
+                  </div>
 
-                  <p
-                    className="
-                    text-gray-500
-                    mt-2
-                    text-lg
-                    "
-                  >
+                  {/* IMAGE */}
 
-                    Dipesan
-                    <span className="text-[#FF8C00] font-black">
-
-                      {" "}{item.qty}x
-
-                    </span>
-
-                  </p>
-
-                  <h2
-                    className="
-                    text-[#FF8C00]
-                    text-4xl
-                    font-black
-                    mt-5
-                    "
-                  >
-
-                    Rp{" "}
-                    {Number(
-                      item.harga
-                    ).toLocaleString()}
-
-                  </h2>
-
-                  {/* BUTTON */}
-
-                  <button
-                    onClick={() =>
-                      navigate("/daftar-menu")
+                  <img
+                    src={
+                      item.gambar ||
+                      item.img
                     }
+                    alt={item.nama}
                     className="
                     w-full
-                    bg-[#002366]
-                    hover:bg-blue-950
-                    text-white
-                    py-4
-                    rounded-[20px]
-                    font-black
-                    text-lg
-                    mt-6
-                    transition-all
+                    h-[260px]
+                    object-cover
                     "
-                  >
+                  />
 
-                    Pesan
+                  {/* CONTENT */}
 
-                  </button>
+                  <div className="p-6">
+
+                    <h1
+                      className="
+                      text-3xl
+                      font-black
+                      text-[#002366]
+                      "
+                    >
+
+                      {item.nama}
+
+                    </h1>
+
+                    <p
+                      className="
+                      text-gray-500
+                      mt-2
+                      text-lg
+                      "
+                    >
+
+                      Dipesan
+
+                      <span
+                        className="
+                        text-[#FF8C00]
+                        font-black
+                        "
+                      >
+
+                        {" "}
+
+                        {
+                          item.totalQty
+                        }x
+
+                      </span>
+
+                    </p>
+
+                    <h2
+                      className="
+                      text-[#FF8C00]
+                      text-4xl
+                      font-black
+                      mt-5
+                      "
+                    >
+
+                      Rp{" "}
+
+                      {Number(
+                        item.harga
+                      ).toLocaleString(
+                        "id-ID"
+                      )}
+
+                    </h2>
+
+                    {/* BUTTON */}
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          "/daftar-menu"
+                        )
+                      }
+                      className="
+                      w-full
+                      bg-[#002366]
+                      hover:bg-blue-950
+                      text-white
+                      py-4
+                      rounded-[20px]
+                      font-black
+                      text-lg
+                      mt-6
+                      transition-all
+                      "
+                    >
+
+                      Pesan
+
+                    </button>
+
+                  </div>
 
                 </div>
 
-              </div>
-
-            ))}
+              )
+            )}
 
           </div>
 
