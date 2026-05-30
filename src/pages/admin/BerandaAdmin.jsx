@@ -309,7 +309,7 @@ const BerandaPembeli = () => {
 
           <p className="text-gray-500 mt-4 text-lg">
 
-            Menu yang paling sering dipesan pelanggan.
+            Menu yang paling sering dipesan pelanggan bulan ini.
 
           </p>
 
@@ -424,18 +424,6 @@ const BerandaPembeli = () => {
                     ).toLocaleString()}
 
                   </h2>
-
-                  {/* BUTTON */}
-                  <button
-                    onClick={() =>
-                      navigate("/daftar-menu")
-                    }
-                    className="w-full mt-8 bg-[#002366] hover:bg-blue-950 text-white py-5 rounded-3xl font-black text-lg transition-all duration-300 hover:scale-105"
-                  >
-
-                    Pesan Sekarang
-
-                  </button>
 
                 </div>
 

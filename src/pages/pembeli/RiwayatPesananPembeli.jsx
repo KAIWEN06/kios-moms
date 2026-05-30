@@ -7,6 +7,9 @@ import { useNavigate } from "react-router-dom";
 
 import { supabase } from "../../lib/supabaseClient";
 
+import toast
+from "react-hot-toast";
+
 const RiwayatPesananPembeli = () => {
 
   const navigate = useNavigate();
@@ -38,8 +41,17 @@ const RiwayatPesananPembeli = () => {
         data,
         error
       } = await supabase
-        .from("history_pesanan")
-        .select("*")
+        .from("pesanan")
+        .select(`
+          *,
+          meja (
+            nomor_meja
+          )
+        `)
+        .in("status", [
+          "selesai",
+          "dibatalkan"
+        ])
         .order(
           "created_at",
           {
@@ -63,11 +75,83 @@ const RiwayatPesananPembeli = () => {
 
   };
 
+const handlePesanLagi = (pesanan) => {
+
+  try {
+
+    const items =
+      typeof pesanan.items === "string"
+        ? JSON.parse(pesanan.items)
+        : pesanan.items;
+
+    const keranjangBaru =
+      items.map((menu) => ({
+
+        id: menu.id,
+
+        nama: menu.nama,
+
+        harga: menu.harga,
+
+        gambar:
+          menu.gambar ||
+          menu.img,
+
+        qty: menu.qty
+
+      }));
+
+    localStorage.setItem(
+      "keranjang",
+      JSON.stringify(keranjangBaru)
+    );
+
+    toast.success(
+      "Pesanan berhasil dimuat ke keranjang"
+    );
+
+    navigate("/keranjang");
+
+  } catch (error) {
+
+    console.error(error);
+
+    toast.error(
+      "Gagal memesan ulang"
+    );
+
+  }
+
+};
+
   useEffect(() => {
 
     fetchRiwayat();
 
   }, []);
+
+  useEffect(() => {
+
+  const channel = supabase
+    .channel("riwayat-pesanan")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "pesanan"
+      },
+      () => {
+        fetchRiwayat();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+
+}, []);
 
   // =========================
   // FILTER
@@ -84,7 +168,7 @@ const RiwayatPesananPembeli = () => {
           );
 
       const meja =
-        `m${item.nomor_meja}`
+        `m${item.meja?.nomor_meja || ""}`
           .toLowerCase()
           .includes(
             search.toLowerCase()
@@ -279,7 +363,7 @@ const RiwayatPesananPembeli = () => {
 
                   <h3 className="text-3xl font-black text-[#002366]">
 
-                    {item.nomor_meja}
+                    {item.meja?.nomor_meja || "-"}
 
                   </h3>
 
@@ -381,10 +465,14 @@ const RiwayatPesananPembeli = () => {
                         <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gray-200">
 
                           <img
-                            src={menu.img}
-                            alt={menu.nama}
-                            className="w-full h-full object-cover"
-                          />
+                              src={
+                                  menu.gambar ||
+                                  menu.img ||
+                                  "/no-image.png"
+                                }
+                              alt={menu.nama}
+                              className="w-full h-full object-cover"
+                            />
 
                         </div>
 
@@ -436,33 +524,13 @@ const RiwayatPesananPembeli = () => {
               <div className="flex flex-wrap gap-4 mt-10">
 
                 <button
-                  onClick={() =>
-                    navigate(
-                      "/daftar-menu"
-                    )
-                  }
+                  onClick={() => handlePesanLagi(item)}
                   className="bg-[#002366] hover:bg-blue-950 text-white font-black px-8 py-4 rounded-3xl transition-all duration-300"
                 >
 
                   Pesan Lagi
 
                 </button>
-
-                {item.status !==
-                  "Dibatalkan" &&
-
-                  item.status !==
-                    "Selesai" && (
-
-                  <button
-                    className="bg-red-500 hover:bg-red-600 text-white font-black px-8 py-4 rounded-3xl transition-all duration-300"
-                  >
-
-                    Batalkan Pesanan
-
-                  </button>
-
-                )}
 
               </div>
 

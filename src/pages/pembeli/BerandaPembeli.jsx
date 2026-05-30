@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import { supabase } from "../../config/supabase";
+import { supabase } from "../../lib/supabaseClient";
+
+import { toast } from "react-hot-toast";
 
 export default function BerandaPembeli() {
 
@@ -22,136 +24,216 @@ export default function BerandaPembeli() {
   }, []);
 
   /* ======================================================
+   REALTIME MENU
+====================================================== */
+
+useEffect(() => {
+
+  const channel =
+    supabase
+      .channel(
+        "realtime-beranda-pembeli"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "menu"
+        },
+        async () => {
+
+          await getMenuTerlaris();
+
+        }
+      )
+      .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    );
+
+  };
+
+}, []);
+
+  /* ======================================================
      GET MENU TERLARIS
   ====================================================== */
 
   const getMenuTerlaris =
-    async () => {
+  async () => {
 
-      try {
+    try {
 
-        /* ======================================================
-           AMBIL SEMUA PESANAN SELESAI / DIPROSES
-        ====================================================== */
+      /* ======================================================
+         AMBIL SEMUA PESANAN CHECKOUT
+      ====================================================== */
 
-        const {
-          data,
-          error
-        } = await supabase
-          .from("pesanan")
-          .select("items")
-          .eq(
-            "is_checkout",
-            true
-          );
-
-        if (error) {
-
-          console.log(error);
-
-          return;
-
-        }
-
-        /* ======================================================
-           GABUNGKAN SEMUA ITEMS
-        ====================================================== */
-
-        let allItems = [];
-
-        data.forEach((pesanan) => {
-
-          let items = [];
-
-          try {
-
-            items =
-              typeof pesanan.items ===
-              "string"
-
-                ? JSON.parse(
-                    pesanan.items
-                  )
-
-                : pesanan.items;
-
-          } catch {
-
-            items = [];
-
-          }
-
-          allItems.push(...items);
-
-        });
-
-        /* ======================================================
-           HITUNG TOTAL TERJUAL
-        ====================================================== */
-
-        const groupedMenu = {};
-
-        allItems.forEach((item) => {
-
-          const nama =
-            item.nama;
-
-          if (
-            !groupedMenu[nama]
-          ) {
-
-            groupedMenu[nama] = {
-
-              ...item,
-
-              totalQty:
-                Number(
-                  item.qty
-                ) || 0,
-
-            };
-
-          } else {
-
-            groupedMenu[
-              nama
-            ].totalQty +=
-              Number(
-                item.qty
-              ) || 0;
-
-          }
-
-        });
-
-        /* ======================================================
-           SORT MENU TERLARIS
-        ====================================================== */
-
-        const sortedMenu =
-          Object.values(
-            groupedMenu
-          )
-
-            .sort(
-              (a, b) =>
-                b.totalQty -
-                a.totalQty
-            )
-
-            .slice(0, 4);
-
-        setMenuTerlaris(
-          sortedMenu
+      const {
+        data,
+        error
+      } = await supabase
+        .from("pesanan")
+        .select("items")
+        .eq(
+          "is_checkout",
+          true
         );
 
-      } catch (err) {
+      if (error) {
 
-        console.log(err);
+        console.log(error);
+
+        return;
 
       }
 
-    };
+      /* ======================================================
+         GABUNGKAN SEMUA ITEMS
+      ====================================================== */
+
+      let allItems = [];
+
+      data.forEach((pesanan) => {
+
+        let items = [];
+
+        try {
+
+          items =
+            typeof pesanan.items ===
+            "string"
+
+              ? JSON.parse(
+                  pesanan.items
+                )
+
+              : pesanan.items;
+
+        } catch {
+
+          items = [];
+
+        }
+
+        allItems.push(...items);
+
+      });
+
+      /* ======================================================
+         HITUNG TOTAL TERJUAL
+      ====================================================== */
+
+      const groupedMenu = {};
+
+      allItems.forEach((item) => {
+
+        const nama =
+          item.nama;
+
+        if (
+          !groupedMenu[nama]
+        ) {
+
+          groupedMenu[nama] = {
+
+            ...item,
+
+            totalQty:
+              Number(
+                item.qty
+              ) || 0,
+
+          };
+
+        } else {
+
+          groupedMenu[
+            nama
+          ].totalQty +=
+            Number(
+              item.qty
+            ) || 0;
+
+        }
+
+      });
+
+      /* ======================================================
+         SORT MENU TERLARIS
+      ====================================================== */
+
+      const sortedMenu =
+        Object.values(
+          groupedMenu
+        )
+
+          .sort(
+            (a, b) =>
+              b.totalQty -
+              a.totalQty
+          )
+
+          .slice(0, 4);
+
+      /* ======================================================
+         AMBIL DATA MENU TERBARU
+      ====================================================== */
+
+      const {
+        data: menuData,
+        error: menuError
+      } = await supabase
+        .from("menu")
+        .select("*");
+
+      if (menuError) {
+
+        console.log(menuError);
+
+        return;
+
+      }
+
+      /* ======================================================
+         SINKRONKAN STOK TERBARU
+      ====================================================== */
+
+      const finalMenu =
+        sortedMenu.map((item) => {
+
+          const menuAktif =
+            menuData.find(
+              (m) =>
+                m.id === item.id
+            );
+
+          return {
+
+            ...item,
+
+            stok:
+              menuAktif?.stok ||
+              "kosong"
+
+          };
+
+        });
+
+      setMenuTerlaris(
+        finalMenu
+      );
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
 
   return (
 
@@ -452,28 +534,143 @@ export default function BerandaPembeli() {
                     {/* BUTTON */}
 
                     <button
-                      onClick={() =>
-                        navigate(
-                          "/daftar-menu"
-                        )
-                      }
-                      className="
-                      w-full
-                      bg-[#002366]
-                      hover:bg-blue-950
-                      text-white
-                      py-4
-                      rounded-[20px]
-                      font-black
-                      text-lg
-                      mt-6
-                      transition-all
-                      "
-                    >
+  onClick={() => {
 
-                      Pesan
+    try {
 
-                    </button>
+      /* VALIDASI MENU HABIS */
+
+      if (
+        item.stok === "kosong"
+      ) {
+
+        toast.error(
+          `${item.nama} sedang habis`
+        );
+
+        navigate(
+          "/daftar-menu"
+        );
+
+        return;
+
+      }
+
+      const keranjangLama =
+        JSON.parse(
+          localStorage.getItem(
+            "keranjang"
+          )
+        ) || [];
+
+      const existingItem =
+        keranjangLama.find(
+          (x) =>
+            x.id === item.id
+        );
+
+      let updatedKeranjang;
+
+      if (existingItem) {
+
+        updatedKeranjang =
+          keranjangLama.map(
+            (x) => {
+
+              if (
+                x.id === item.id
+              ) {
+
+                return {
+
+                  ...x,
+
+                  qty:
+                    x.qty + 1
+
+                };
+
+              }
+
+              return x;
+
+            }
+          );
+
+      } else {
+
+        updatedKeranjang = [
+
+          ...keranjangLama,
+
+          {
+
+            id: item.id,
+
+            nama:
+              item.nama,
+
+            harga:
+              item.harga,
+
+            gambar:
+              item.gambar ||
+              item.img,
+
+            deskripsi:
+              item.deskripsi,
+
+            qty: 1
+
+          }
+
+        ];
+
+      }
+
+      localStorage.setItem(
+        "keranjang",
+        JSON.stringify(
+          updatedKeranjang
+        )
+      );
+
+      toast.success(
+        `${item.nama} ditambahkan`
+      );
+
+      navigate(
+        "/daftar-menu"
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.error(
+        "Gagal menambahkan menu"
+      );
+
+    }
+
+  }}
+  className="
+  w-full
+  bg-[#002366]
+  hover:bg-blue-950
+  text-white
+  py-4
+  rounded-[20px]
+  font-black
+  text-lg
+  mt-6
+  transition-all
+  "
+>
+
+  Pesan
+
+</button>
 
                   </div>
 

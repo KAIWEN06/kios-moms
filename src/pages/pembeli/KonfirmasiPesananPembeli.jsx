@@ -1,1110 +1,1422 @@
 import React, {
-    useEffect,
-    useMemo,
-    useState,
+  useEffect,
+  useMemo,
+  useState,
 } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate }
+from "react-router-dom";
 
-import { supabase } from "../../config/supabase";
+import { supabase }
+from "../../lib/supabaseClient";
 
-import toast from "react-hot-toast";
+import toast
+from "react-hot-toast";
 
 const KonfirmasiPesananPembeli = () => {
 
-    const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-    /* =====================================================
-       STATE
-    ===================================================== */
+  /* =====================================================
+     STATE
+  ===================================================== */
 
-    const [cart, setCart] =
-        useState([]);
+  const [cart, setCart] =
+    useState([]);
 
-    const [loading, setLoading] =
-        useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
-    const [namaPembeli, setNamaPembeli] =
-        useState("");
+  const [
+    namaPembeli,
+    setNamaPembeli
+  ] = useState("");
 
-    const [email, setEmail] =
-        useState("");
+  const [email, setEmail] =
+    useState("");
 
-    const [metodePembayaran, setMetodePembayaran] =
-        useState("Tunai");
+  const [
+    metodePembayaran,
+    setMetodePembayaran
+  ] = useState("Tunai");
 
-    const [selectedMeja, setSelectedMeja] =
-        useState(null);
+  const [
+    selectedMeja,
+    setSelectedMeja
+  ] = useState(null);
 
-    const [showPopupMeja, setShowPopupMeja] =
-        useState(false);
+  const [
+    showPopupMeja,
+    setShowPopupMeja
+  ] = useState(false);
 
-    const [currentPage, setCurrentPage] =
-        useState(1);
+  const [
+    currentPage,
+    setCurrentPage
+  ] = useState(1);
 
-    const [mejaDipakai, setMejaDipakai] =
-        useState([]);
+  const [
+    mejaDipakai,
+    setMejaDipakai
+  ] = useState([]);
 
-    /* =====================================================
-       AMBIL DATA DARI KERANJANG
-       RELASI DENGAN HALAMAN KERANJANG
-    ===================================================== */
+  /* =====================================================
+     AMBIL DATA KERANJANG
+  ===================================================== */
 
-    useEffect(() => {
+ useEffect(() => {
 
-        const dataKeranjang =
-    JSON.parse(
+  const syncKeranjang = () => {
+
+    const dataKeranjang =
+      JSON.parse(
         localStorage.getItem(
-            "checkoutItems"
+          "keranjang"
         )
-    ) || [];
+      ) || [];
 
-        setCart(dataKeranjang);
+    setCart(dataKeranjang);
 
-        getMejaDipakai();
+    // JIKA KOSONG
+    // BALIK KE KERANJANG
 
-    }, []);
+    if (
+      dataKeranjang.length === 0
+    ) {
 
-    /* =====================================================
-       CEK MEJA YANG DIPAKAI
-       JIKA MASIH DIPROSES
-       MAKA TIDAK BISA DIPILIH
-    ===================================================== */
+      toast.error(
+        "Keranjang kosong"
+      );
 
-    const getMejaDipakai =
-        async () => {
+      navigate("/keranjang");
 
-            const {
-                data,
-                error,
-            } = await supabase
-                .from("pesanan")
-                .select(
-                    "nomor_meja,status"
-                )
-                .eq(
-                    "status",
-                    "diproses"
-                );
+    }
 
-            if (error) {
+  };
 
-                console.log(error);
+  // LOAD AWAL
 
-            useEffect(() => {
+  syncKeranjang();
 
-    const data =
-        JSON.parse(
-            localStorage.getItem(
-                "checkoutItems"
-            )
-        ) || [];
+  // SAAT WINDOW FOCUS
 
-    setCart(data);
+  window.addEventListener(
+    "focus",
+    syncKeranjang
+  );
+
+  // SAAT TAB KEMBALI AKTIF
+
+  document.addEventListener(
+    "visibilitychange",
+    syncKeranjang
+  );
+
+  getMejaDipakai();
+
+  return () => {
+
+    window.removeEventListener(
+      "focus",
+      syncKeranjang
+    );
+
+    document.removeEventListener(
+      "visibilitychange",
+      syncKeranjang
+    );
+
+  };
 
 }, []);
 
-                return;
+  /* =====================================================
+     REALTIME MEJA
+  ===================================================== */
 
-            }
+  useEffect(() => {
 
-            const mejaUsed =
-                data.map(
-                    (item) =>
-                        Number(
-                            item.nomor_meja
-                        )
-                );
+    const channel =
+      supabase
+        .channel(
+          "realtime-meja"
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pesanan"
+          },
+          () => {
 
-            setMejaDipakai(
-                mejaUsed
-            );
+            getMejaDipakai();
 
-        };
+          }
+        )
+        .subscribe();
 
-    /* =====================================================
-       TOTAL HARGA
-    ===================================================== */
+    return () => {
 
-    const totalHarga =
-        useMemo(() => {
+      supabase.removeChannel(
+        channel
+      );
 
-            return cart.reduce(
-                (total, item) => {
+    };
 
-                    return (
-                        total +
-                        item.harga *
-                            item.qty
-                    );
+  }, []);
 
-                },
-                0
-            );
+  /* =====================================================
+     AMBIL MEJA DIPAKAI
+  ===================================================== */
 
-        }, [cart]);
+  const getMejaDipakai =
+  async () => {
 
-    /* =====================================================
-       DATA MEJA
-    ===================================================== */
+    try {
 
-    const mejaPerPage = 10;
+      /* =========================================
+         AMBIL MEJA YANG MASIH AKTIF
+      ========================================= */
 
-    const totalMeja = 100;
+      const {
+        data,
+        error
+      } = await supabase
+        .from("pesanan")
+        .select(`
+          meja_id,
+          status,
+          meja (
+            nomor_meja
+          )
+        `)
+        .in(
+          "status",
+          [
+            "menunggu_pembayaran",
+            "diproses"
+          ]
+        );
 
-    const allMeja = Array.from(
-        { length: totalMeja },
-        (_, i) => i + 1
+      if (error)
+        throw error;
+
+      const mejaUsed =
+        data.map(
+          (item) =>
+            Number(
+              item.meja
+                ?.nomor_meja
+            )
+        );
+
+      setMejaDipakai(
+        mejaUsed
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
+  };
+
+  /* =====================================================
+     TOTAL HARGA
+  ===================================================== */
+
+  const totalHarga =
+    useMemo(() => {
+
+      return cart.reduce(
+        (total, item) => {
+
+          return (
+            total +
+            Number(item.harga) *
+              Number(item.qty)
+          );
+
+        },
+        0
+      );
+
+    }, [cart]);
+
+  /* =====================================================
+     DATA MEJA
+  ===================================================== */
+
+  const mejaPerPage = 10;
+
+  const totalMeja = 100;
+
+  const allMeja =
+    Array.from(
+      { length: totalMeja },
+      (_, i) => i + 1
     );
 
-    const currentMeja =
-        useMemo(() => {
+  const currentMeja =
+    useMemo(() => {
 
-            const start =
-                (currentPage - 1) *
-                mejaPerPage;
+      const start =
+        (currentPage - 1) *
+        mejaPerPage;
 
-            const end =
-                start + mejaPerPage;
+      const end =
+        start + mejaPerPage;
 
-            return allMeja.slice(
-                start,
-                end
-            );
+      return allMeja.slice(
+        start,
+        end
+      );
 
-        }, [currentPage]);
+    }, [currentPage]);
 
-    /* =====================================================
-       PILIH MEJA
-    ===================================================== */
+  /* =====================================================
+     PILIH MEJA
+  ===================================================== */
 
-    const pilihMeja =
-        (nomor) => {
+  const pilihMeja =
+    (nomor) => {
 
-            const sedangDipakai =
-                mejaDipakai.includes(
-                    nomor
-                );
+      const sedangDipakai =
+        mejaDipakai.includes(
+          nomor
+        );
 
-            if (sedangDipakai) {
+      if (sedangDipakai) {
 
-                toast.error(
-                    "Meja sedang digunakan"
-                );
+        toast.error(
+          "Meja sedang digunakan"
+        );
 
-                return;
+        return;
 
-            }
+      }
 
-            setSelectedMeja(
-                nomor
-            );
+      setSelectedMeja(
+        nomor
+      );
 
-        };
+    };
 
-    /* =====================================================
-       KONFIRMASI PESANAN
-    ===================================================== */
+  /* =====================================================
+     VALIDASI EMAIL
+  ===================================================== */
 
-    const handleKonfirmasiPesanan =
-        async () => {
+  const isValidEmail =
+    (email) => {
 
-            try {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        .test(email);
 
-                if (
-                    cart.length === 0
-                ) {
+    };
 
-                    toast.error(
-                        "Keranjang kosong"
-                    );
+  /* =====================================================
+     KONFIRMASI PESANAN
+  ===================================================== */
 
-                    return;
+  const handleKonfirmasiPesanan = async () => {
 
-                }
+  try {
 
-                if (
-                    !namaPembeli
-                ) {
+    if (cart.length === 0) {
 
-                    toast.error(
-                        "Nama pembeli wajib diisi"
-                    );
+      toast.error(
+        "Keranjang kosong"
+      );
 
-                    return;
+      return;
 
-                }
+    }
 
-                if (
-                    !selectedMeja
-                ) {
+    if (!namaPembeli.trim()) {
 
-                    toast.error(
-                        "Pilih meja terlebih dahulu"
-                    );
+      toast.error(
+        "Nama pembeli wajib diisi"
+      );
 
-                    return;
+      return;
 
-                }
+    }
 
-                setLoading(true);
+    if (
+      namaPembeli.trim().length < 2
+    ) {
 
-                const kodePesanan =
-                    "ORD-" +
-                    Date.now();
+      toast.error(
+        "Nama terlalu pendek"
+      );
 
-                const payload = {
+      return;
 
-                    kode_pesanan:
-                        kodePesanan,
+    }
 
-                    nama_pembeli:
-                        namaPembeli,
+    if (!email) {
 
-                    email:
-                        email,
+      toast.error(
+        "Email wajib diisi"
+      );
 
-                    nomor_meja:
-                        selectedMeja,
+      return;
 
-                    metode_pembayaran:
-                        metodePembayaran,
+    }
 
-                    items:
-                        JSON.stringify(
-                            cart
-                        ),
+    if (
+      !isValidEmail(email)
+    ) {
 
-                    total_harga:
-                        totalHarga,
+      toast.error(
+        "Format email tidak valid"
+      );
 
-                    status:
-                        "diproses",
+      return;
 
-                    is_checkout:
-                        true,
+    }
 
-                };
+    if (!selectedMeja) {
 
-                const {
-                    error,
-                } = await supabase
-                    .from(
-                        "pesanan"
-                    )
-                    .insert([
-                        payload,
-                    ]);
+      toast.error(
+        "Pilih meja terlebih dahulu"
+      );
 
-                if (error) {
+      return;
 
-                    console.log(
-                        error
-                    );
+    }
 
-                    toast.error(
-                        "Gagal konfirmasi pesanan"
-                    );
+    setLoading(true);
 
-                    return;
+    /* =========================================
+       VALIDASI MEJA REALTIME
+    ========================================= */
 
-                }
+    const {
+      data: mejaData,
+      error: mejaError
+    } = await supabase
+      .from("meja")
+      .select("*")
+      .eq(
+        "nomor_meja",
+        Number(selectedMeja)
+      )
+      .maybeSingle();
 
-                /* =========================================
-                   HAPUS KERANJANG
-                ========================================= */
+    if (mejaError) {
 
-                localStorage.removeItem(
-                    "keranjang"
-                );
+      console.log(mejaError);
 
-                toast.success(
-                    "Pesanan berhasil dikonfirmasi"
-                );
+      toast.error(
+        "Gagal validasi meja"
+      );
 
-                navigate(
-                    "/status-pesanan"
-                );
+      return;
 
-            } catch (err) {
+    }
 
-                console.log(err);
+    if (!mejaData) {
 
-                toast.error(
-                    "Terjadi kesalahan"
-                );
+      toast.error(
+        "Meja tidak ditemukan"
+      );
 
-            } finally {
+      return;
 
-                setLoading(false);
+    }
 
-            }
+    if (
+      mejaData.status ===
+      "dipakai"
+    ) {
 
-        };
+      toast.error(
+        `Meja ${selectedMeja} sedang digunakan`
+      );
 
-    return (
+      return;
 
-        <div
-            className="
-            w-full
-            min-h-screen
-            bg-[#F3F4F6]
-            px-4
-            md:px-7
-            py-8
-            "
+    }
+
+    /* =========================================
+       GENERATE KODE PESANAN
+    ========================================= */
+
+    const kodePesanan =
+      "ORD-" + Date.now();
+
+/* =========================================
+   NORMALISASI ITEMS
+========================================= */
+
+const normalizedItems =
+  cart.map((item) => ({
+
+    ...item,
+
+    gambar:
+      item.gambar ||
+      item.img ||
+      ""
+
+  }));
+
+    /* =========================================
+       INSERT PESANAN
+    ========================================= */
+
+    const payload = {
+
+    kode_pesanan:
+      kodePesanan,
+
+    nama_pembeli:
+      namaPembeli.trim(),
+
+    email:
+      email.trim(),
+
+    meja_id:
+      mejaData.id,
+
+    metode_pembayaran:
+      metodePembayaran,
+
+    items:
+      normalizedItems,
+
+    total_harga:
+      totalHarga,
+
+    status:
+      "menunggu_pembayaran",
+
+    is_checkout:
+      true,
+
+  };
+
+    const {
+      error: insertError
+    } = await supabase
+      .from("pesanan")
+      .insert([payload]);
+
+    if (insertError) {
+
+      console.log(
+        insertError
+      );
+
+      toast.error(
+        "Gagal menyimpan pesanan"
+      );
+
+      return;
+
+    }
+
+    /* =========================================
+       UPDATE STATUS MEJA
+    ========================================= */
+
+    const {
+      error: updateMejaError
+    } = await supabase
+      .from("meja")
+      .update({
+        status: "dipakai"
+      })
+      .eq(
+        "id",
+        mejaData.id
+      );
+
+    if (updateMejaError) {
+
+      console.log(
+        updateMejaError
+      );
+
+    }
+
+    /* =========================================
+       KIRIM EMAIL
+    ========================================= */
+
+    const {
+  data: emailData,
+  error: emailError
+} = await supabase
+  .functions
+  .invoke(
+    "send-order-email",
+    {
+      body: {
+
+        email,
+
+        nama_pembeli:
+          namaPembeli,
+
+        kode_pesanan:
+          kodePesanan,
+
+        nomor_meja:
+          selectedMeja,
+
+        total_harga:
+          totalHarga,
+
+        items: cart
+
+      }
+    }
+  );
+
+console.log(
+  "EMAIL DATA:",
+  emailData
+);
+
+console.log(
+  "EMAIL ERROR:",
+  emailError
+);
+
+    /* =========================================
+       HAPUS STORAGE
+    ========================================= */
+
+    localStorage.removeItem(
+      "keranjang"
+    );
+
+    localStorage.removeItem(
+      "checkoutItems"
+    );
+
+    /* =========================================
+       SUCCESS
+    ========================================= */
+
+    toast.success(
+      "Pesanan berhasil dikonfirmasi"
+    );
+
+    navigate(
+      "/status-pesanan",
+      {
+        state: {
+          kodePesanan
+        }
+      }
+    );
+
+  } catch (err) {
+
+    console.log(err);
+
+    toast.error(
+      "Gagal konfirmasi pesanan"
+    );
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+};
+
+  return (
+
+    <div
+      className="
+      w-full
+      min-h-screen
+      bg-[#F3F4F6]
+      px-4
+      md:px-7
+      py-8
+      "
+    >
+
+      {/* HEADER */}
+
+      <div className="mb-8">
+
+        <h1
+          className="
+          text-4xl
+          md:text-6xl
+          font-black
+          text-[#002366]
+          "
         >
 
-            {/* =====================================================
-               HEADER
-            ===================================================== */}
+          Konfirmasi{" "}
 
-            <div className="mb-8">
+          <span className="text-[#FF8C00]">
 
-                <h1
-                    className="
-                    text-4xl
-                    md:text-6xl
-                    font-black
-                    text-[#002366]
-                    "
-                >
+            Pesanan
 
-                    Konfirmasi{" "}
+          </span>
 
-                    <span className="text-[#FF8C00]">
+        </h1>
 
-                        Pesanan
+        <p className="text-gray-500 mt-2">
 
-                    </span>
+          Pastikan data pesanan sudah benar.
 
-                </h1>
+        </p>
 
-                <p className="text-gray-500 mt-2">
+      </div>
 
-                    Pastikan data pesanan sudah benar.
+      {/* CONTENT */}
 
-                </p>
+      <div
+        className="
+        grid
+        grid-cols-1
+        xl:grid-cols-[1fr_450px]
+        gap-6
+        "
+      >
 
-            </div>
+        {/* LEFT */}
 
-            {/* =====================================================
-               CONTENT
-            ===================================================== */}
+        <div
+          className="
+          bg-white
+          rounded-[35px]
+          p-6
+          shadow-sm
+          "
+        >
 
-            <div
-                className="
-                grid
-                grid-cols-1
-                xl:grid-cols-[1fr_450px]
-                gap-6
-                "
+          <h2
+            className="
+            text-3xl
+            font-black
+            text-[#002366]
+            mb-8
+            "
+          >
+
+            Data Pembeli
+
+          </h2>
+
+          {/* NAMA */}
+
+          <div className="mb-5">
+
+            <p
+              className="
+              font-bold
+              text-[#002366]
+              mb-2
+              "
             >
 
-                {/* =====================================================
-                   LEFT
-                ===================================================== */}
-
-                <div
-                    className="
-                    bg-white
-                    rounded-[35px]
-                    p-6
-                    shadow-sm
-                    "
-                >
-
-                    <h2
-                        className="
-                        text-3xl
-                        font-black
-                        text-[#002366]
-                        mb-8
-                        "
-                    >
-
-                        Data Pembeli
-
-                    </h2>
-
-                    {/* NAMA */}
-
-                    <div className="mb-5">
-
-                        <p
-                            className="
-                            font-bold
-                            text-[#002366]
-                            mb-2
-                            "
-                        >
-
-                            Nama Pembeli
-
-                        </p>
-
-                        <input
-                            type="text"
-                            maxLength={30}
-                            value={
-                                namaPembeli
-                            }
-                            onChange={(e) =>
-                                setNamaPembeli(
-                                    e.target
-                                        .value
-                                )
-                            }
-                            className="
-                            w-full
-                            h-[60px]
-                            rounded-2xl
-                            border
-                            border-gray-300
-                            px-5
-                            outline-none
-                            "
-                        />
-
-                    </div>
-
-                    {/* EMAIL */}
-
-                    <div className="mb-8">
-
-                        <p
-                            className="
-                            font-bold
-                            text-[#002366]
-                            mb-2
-                            "
-                        >
-
-                            Email
-
-                        </p>
-
-                        <input
-                            type="email"
-                            maxLength={30}
-                            value={email}
-                            onChange={(e) =>
-                                setEmail(
-                                    e.target
-                                        .value
-                                )
-                            }
-                            className="
-                            w-full
-                            h-[60px]
-                            rounded-2xl
-                            border
-                            border-gray-300
-                            px-5
-                            outline-none
-                            "
-                        />
-
-                    </div>
-
-                    {/* =====================================================
-                       PILIH MEJA
-                    ===================================================== */}
-
-                    <div className="mb-10">
-
-                        <p
-                            className="
-                            font-bold
-                            text-[#002366]
-                            text-2xl
-                            mb-4
-                            "
-                        >
-
-                            Pilih Meja
-
-                        </p>
-
-                        <button
-                            onClick={() =>
-                                setShowPopupMeja(
-                                    true
-                                )
-                            }
-                            className="
-                            w-full
-                            md:w-[280px]
-                            h-[60px]
-                            rounded-2xl
-                            bg-[#002366]
-                            text-white
-                            font-bold
-                            text-lg
-                            "
-                        >
-
-                            {selectedMeja
-                                ? `Meja ${selectedMeja}`
-                                : "Pilih Meja"}
-
-                        </button>
-
-                    </div>
-
-                    {/* =====================================================
-                       METODE PEMBAYARAN
-                    ===================================================== */}
-
-                    <div>
-
-                        <p
-                            className="
-                            font-bold
-                            text-[#002366]
-                            text-2xl
-                            mb-5
-                            "
-                        >
-
-                            Metode Pembayaran
-
-                        </p>
-
-                        <div
-                            className="
-                            grid
-                            grid-cols-1
-                            md:grid-cols-2
-                            gap-4
-                            "
-                        >
-
-                            {/* TUNAI */}
-
-                            <button
-                                onClick={() =>
-                                    setMetodePembayaran(
-                                        "Tunai"
-                                    )
-                                }
-                                className={`
-                                h-[70px]
-                                rounded-2xl
-                                border-2
-                                font-black
-
-                                ${
-                                    metodePembayaran ===
-                                    "Tunai"
-
-                                        ? "bg-[#002366] border-[#002366] text-white"
-
-                                        : "bg-white border-gray-200 text-[#002366]"
-                                }
-                                `}
-                            >
-
-                                💵 Tunai
-
-                            </button>
-
-                            {/* QRIS */}
-
-                            <button
-                                onClick={() =>
-                                    setMetodePembayaran(
-                                        "QRIS"
-                                    )
-                                }
-                                className={`
-                                h-[70px]
-                                rounded-2xl
-                                border-2
-                                font-black
-
-                                ${
-                                    metodePembayaran ===
-                                    "QRIS"
-
-                                        ? "bg-[#002366] border-[#002366] text-white"
-
-                                        : "bg-white border-gray-200 text-[#002366]"
-                                }
-                                `}
-                            >
-
-                                📱 QRIS
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                {/* =====================================================
-                   RIGHT
-                ===================================================== */}
-
-                <div
-                    className="
-                    bg-white
-                    rounded-[35px]
-                    p-6
-                    shadow-sm
-                    h-fit
-                    sticky
-                    top-28
-                    "
-                >
-
-                    <h2
-                        className="
-                        text-3xl
-                        font-black
-                        text-[#002366]
-                        mb-8
-                        "
-                    >
-
-                        Ringkasan Pesanan
-
-                    </h2>
-
-                    {/* =====================================================
-                       LIST MENU DARI KERANJANG
-                    ===================================================== */}
-
-                    <div className="flex flex-col gap-5">
-
-                        {cart.map(
-                            (
-                                item,
-                                index
-                            ) => (
-
-                                <div
-                                    key={
-                                        index
-                                    }
-                                    className="
-                                    flex
-                                    items-center
-                                    justify-between
-                                    "
-                                >
-
-                                    <div>
-
-                                        <h3
-                                            className="
-                                            font-black
-                                            text-[#002366]
-                                            text-lg
-                                            "
-                                        >
-
-                                            {
-                                                item.nama
-                                            }
-
-                                        </h3>
-
-                                        <p className="text-gray-400">
-
-                                            {
-                                                item.qty
-                                            }{" "}
-                                            x Rp{" "}
-
-                                            {item.harga.toLocaleString(
-                                                "id-ID"
-                                            )}
-
-                                        </p>
-
-                                    </div>
-
-                                    <p
-                                        className="
-                                        font-black
-                                        text-[#FF8C00]
-                                        text-xl
-                                        "
-                                    >
-
-                                        Rp{" "}
-
-                                        {(
-                                            item.qty *
-                                            item.harga
-                                        ).toLocaleString(
-                                            "id-ID"
-                                        )}
-
-                                    </p>
-
-                                </div>
-
-                            )
-                        )}
-
-                    </div>
-
-                    {/* TOTAL */}
-
-                    <div
-                        className="
-                        border-t
-                        mt-7
-                        pt-7
-                        flex
-                        items-center
-                        justify-between
-                        "
-                    >
-
-                        <h1
-                            className="
-                            text-3xl
-                            font-black
-                            text-[#002366]
-                            "
-                        >
-
-                            Total
-
-                        </h1>
-
-                        <h1
-                            className="
-                            text-4xl
-                            font-black
-                            text-[#FF8C00]
-                            "
-                        >
-
-                            Rp{" "}
-
-                            {totalHarga.toLocaleString(
-                                "id-ID"
-                            )}
-
-                        </h1>
-
-                    </div>
-
-                    {/* BUTTON */}
-
-                    <button
-                        onClick={
-                            handleKonfirmasiPesanan
-                        }
-                        disabled={loading}
-                        className="
-                        w-full
-                        h-[65px]
-                        rounded-2xl
-                        bg-[#FF8C00]
-                        text-white
-                        font-black
-                        text-xl
-                        mt-8
-                        "
-                    >
-
-                        {loading
-                            ? "Loading..."
-                            : "Konfirmasi Pesanan"}
-
-                    </button>
-
-                </div>
+              Nama Pembeli
+
+            </p>
+
+            <input
+              type="text"
+              maxLength={30}
+              value={
+                namaPembeli
+              }
+              onChange={(e) =>
+                setNamaPembeli(
+                  e.target.value
+                )
+              }
+              className="
+              w-full
+              h-[60px]
+              rounded-2xl
+              border
+              border-gray-300
+              px-5
+              outline-none
+              "
+            />
+
+          </div>
+
+          {/* EMAIL */}
+
+          <div className="mb-8">
+
+            <p
+              className="
+              font-bold
+              text-[#002366]
+              mb-2
+              "
+            >
+
+              Email
+
+            </p>
+
+            <input
+              type="email"
+              maxLength={50}
+              value={email}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value
+                )
+              }
+              className="
+              w-full
+              h-[60px]
+              rounded-2xl
+              border
+              border-gray-300
+              px-5
+              outline-none
+              "
+            />
+
+          </div>
+
+          {/* PILIH MEJA */}
+
+          <div className="mb-10">
+
+            <p
+              className="
+              font-bold
+              text-[#002366]
+              text-2xl
+              mb-4
+              "
+            >
+
+              Pilih Meja
+
+            </p>
+
+            <button
+              onClick={() =>
+                setShowPopupMeja(
+                  true
+                )
+              }
+              className="
+              w-full
+              md:w-[280px]
+              h-[60px]
+              rounded-2xl
+              bg-[#002366]
+              text-white
+              font-bold
+              text-lg
+              "
+            >
+
+              {
+                selectedMeja
+
+                  ? `Meja ${selectedMeja}`
+
+                  : "Pilih Meja"
+              }
+
+            </button>
+
+          </div>
+
+          {/* PEMBAYARAN */}
+
+          <div>
+
+            <p
+              className="
+              font-bold
+              text-[#002366]
+              text-2xl
+              mb-5
+              "
+            >
+
+              Metode Pembayaran
+
+            </p>
+
+            <div
+              className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-4
+              "
+            >
+
+              {/* TUNAI */}
+
+              <button
+                onClick={() =>
+                  setMetodePembayaran(
+                    "Tunai"
+                  )
+                }
+                className={`
+                h-[70px]
+                rounded-2xl
+                border-2
+                font-black
+
+                ${
+                  metodePembayaran ===
+                  "Tunai"
+
+                    ? "bg-[#002366] border-[#002366] text-white"
+
+                    : "bg-white border-gray-200 text-[#002366]"
+                }
+                `}
+              >
+
+                💵 Tunai
+
+              </button>
+
+              {/* QRIS */}
+
+              <button
+                onClick={() =>
+                  setMetodePembayaran(
+                    "QRIS"
+                  )
+                }
+                className={`
+                h-[70px]
+                rounded-2xl
+                border-2
+                font-black
+
+                ${
+                  metodePembayaran ===
+                  "QRIS"
+
+                    ? "bg-[#002366] border-[#002366] text-white"
+
+                    : "bg-white border-gray-200 text-[#002366]"
+                }
+                `}
+              >
+
+                📱 QRIS
+
+              </button>
 
             </div>
 
-            {/* =====================================================
-               POPUP PILIH MEJA
-            ===================================================== */}
-
-            {showPopupMeja && (
-
-                <div
-                    className="
-                    fixed
-                    inset-0
-                    z-50
-                    bg-black/50
-                    flex
-                    items-center
-                    justify-center
-                    p-4
-                    "
-                >
-
-                    <div
-                        className="
-                        bg-white
-                        w-full
-                        max-w-[700px]
-                        rounded-[35px]
-                        p-6
-                        "
-                    >
-
-                        {/* HEADER */}
-
-                        <div
-                            className="
-                            flex
-                            items-center
-                            justify-between
-                            mb-8
-                            "
-                        >
-
-                            <h1
-                                className="
-                                text-3xl
-                                font-black
-                                text-[#002366]
-                                "
-                            >
-
-                                Pilih Meja
-
-                            </h1>
-
-                            <button
-                                onClick={() =>
-                                    setShowPopupMeja(
-                                        false
-                                    )
-                                }
-                                className="
-                                w-[45px]
-                                h-[45px]
-                                rounded-xl
-                                bg-red-500
-                                text-white
-                                text-2xl
-                                font-black
-                                "
-                            >
-
-                                ×
-
-                            </button>
-
-                        </div>
-
-                        {/* GRID */}
-
-                        <div
-                            className="
-                            grid
-                            grid-cols-2
-                            md:grid-cols-5
-                            gap-4
-                            "
-                        >
-
-                            {currentMeja.map(
-                                (
-                                    nomor
-                                ) => {
-
-                                    const dipakai =
-                                        mejaDipakai.includes(
-                                            nomor
-                                        );
-
-                                    const selected =
-                                        selectedMeja ===
-                                        nomor;
-
-                                    return (
-
-                                        <button
-                                            key={
-                                                nomor
-                                            }
-                                            onClick={() =>
-                                                pilihMeja(
-                                                    nomor
-                                                )
-                                            }
-                                            disabled={
-                                                dipakai
-                                            }
-                                            className={`
-                                            h-[80px]
-                                            rounded-2xl
-                                            font-black
-                                            text-xl
-
-                                            ${
-                                                selected
-
-                                                    ? "bg-[#FF8C00] text-white"
-
-                                                    : dipakai
-
-                                                    ? "bg-gray-300 text-white cursor-not-allowed"
-
-                                                    : "bg-gray-600 text-white"
-                                            }
-                                            `}
-                                        >
-
-                                            {
-                                                nomor
-                                            }
-
-                                        </button>
-
-                                    );
-
-                                }
-                            )}
-
-                        </div>
-
-                        {/* PAGINATION */}
-
-                        <div
-                            className="
-                            flex
-                            items-center
-                            justify-between
-                            mt-8
-                            "
-                        >
-
-                            {/* PREVIOUS */}
-
-                            <button
-                                disabled={
-                                    currentPage ===
-                                    1
-                                }
-                                onClick={() =>
-                                    setCurrentPage(
-                                        (
-                                            prev
-                                        ) =>
-                                            prev -
-                                            1
-                                    )
-                                }
-                                className="
-                                px-6
-                                h-[50px]
-                                rounded-2xl
-                                bg-gray-200
-                                font-bold
-                                disabled:opacity-40
-                                "
-                            >
-
-                                Previous
-
-                            </button>
-
-                            {/* INFO */}
-
-                            <p
-                                className="
-                                font-black
-                                text-[#002366]
-                                "
-                            >
-
-                                {
-                                    currentMeja[0]
-                                }{" "}
-                                -{" "}
-                                {
-                                    currentMeja[
-                                        currentMeja.length -
-                                            1
-                                    ]
-                                }
-
-                            </p>
-
-                            {/* NEXT */}
-
-                            <button
-                                disabled={
-                                    currentPage ===
-                                    10
-                                }
-                                onClick={() =>
-                                    setCurrentPage(
-                                        (
-                                            prev
-                                        ) =>
-                                            prev +
-                                            1
-                                    )
-                                }
-                                className="
-                                px-6
-                                h-[50px]
-                                rounded-2xl
-                                bg-[#FF8C00]
-                                text-white
-                                font-bold
-                                disabled:opacity-40
-                                "
-                            >
-
-                                Next
-
-                            </button>
-
-                        </div>
-
-                        {/* BUTTON */}
-
-                        <button
-                            onClick={() =>
-                                setShowPopupMeja(
-                                    false
-                                )
-                            }
-                            className="
-                            w-full
-                            h-[60px]
-                            rounded-2xl
-                            bg-[#002366]
-                            text-white
-                            font-black
-                            text-lg
-                            mt-8
-                            "
-                        >
-
-                            Gunakan Meja{" "}
-
-                            {
-                                selectedMeja
-                            }
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-            )}
+          </div>
 
         </div>
 
-    );
+        {/* RIGHT */}
+
+        <div
+          className="
+          bg-white
+          rounded-[35px]
+          p-6
+          shadow-sm
+          h-fit
+          sticky
+          top-28
+          "
+        >
+
+          <h2
+            className="
+            text-3xl
+            font-black
+            text-[#002366]
+            mb-8
+            "
+          >
+
+            Ringkasan Pesanan
+
+          </h2>
+
+          {/* LIST */}
+
+          <div className="flex flex-col gap-5">
+
+            {
+              cart.map(
+                (
+                  item,
+                  index
+                ) => (
+
+                  <div
+                    key={index}
+                    className="
+                    flex
+                    items-center
+                    justify-between
+                    "
+                  >
+
+                    <div>
+
+                      <h3
+                        className="
+                        font-black
+                        text-[#002366]
+                        text-lg
+                        "
+                      >
+
+                        {
+                          item.nama
+                        }
+
+                      </h3>
+
+                      <p className="text-gray-400">
+
+                        {item.qty} x Rp{" "}
+
+                        {
+                          Number(
+                            item.harga
+                          ).toLocaleString(
+                            "id-ID"
+                          )
+                        }
+
+                      </p>
+
+                    </div>
+
+                    <p
+                      className="
+                      font-black
+                      text-[#FF8C00]
+                      text-xl
+                      "
+                    >
+
+                      Rp{" "}
+
+                      {
+                        (
+                          Number(
+                            item.qty
+                          ) *
+                          Number(
+                            item.harga
+                          )
+                        ).toLocaleString(
+                          "id-ID"
+                        )
+                      }
+
+                    </p>
+
+                  </div>
+
+                )
+              )
+            }
+
+          </div>
+
+          {/* TOTAL */}
+
+          <div
+            className="
+            border-t
+            mt-7
+            pt-7
+            flex
+            items-center
+            justify-between
+            "
+          >
+
+            <h1
+              className="
+              text-3xl
+              font-black
+              text-[#002366]
+              "
+            >
+
+              Total
+
+            </h1>
+
+            <h1
+              className="
+              text-4xl
+              font-black
+              text-[#FF8C00]
+              "
+            >
+
+              Rp{" "}
+
+              {
+                totalHarga.toLocaleString(
+                  "id-ID"
+                )
+              }
+
+            </h1>
+
+          </div>
+
+          {/* BUTTON */}
+
+          <button
+            onClick={
+              handleKonfirmasiPesanan
+            }
+            disabled={loading}
+            className="
+            w-full
+            h-[65px]
+            rounded-2xl
+            bg-[#FF8C00]
+            text-white
+            font-black
+            text-xl
+            mt-8
+            disabled:opacity-50
+            "
+          >
+
+            {
+              loading
+
+                ? "MEMPROSES..."
+
+                : "Konfirmasi Pesanan"
+            }
+
+          </button>
+
+        </div>
+
+      </div>
+
+{/* POPUP MEJA */}
+
+{
+  showPopupMeja && (
+
+    <div
+      className="
+      fixed
+      inset-0
+      z-50
+      bg-black/50
+      backdrop-blur-sm
+      flex
+      items-center
+      justify-center
+      p-4
+      "
+    >
+
+      <div
+        className="
+        bg-white
+        w-full
+        max-w-[650px]
+        rounded-[38px]
+        p-6
+        shadow-2xl
+        animate-[fadeIn_.2s_ease]
+        "
+      >
+
+        {/* HEADER */}
+
+        <div
+          className="
+          flex
+          items-center
+          justify-between
+          mb-6
+          "
+        >
+
+          <h1
+            className="
+            text-3xl
+            font-black
+            text-[#002366]
+            "
+          >
+
+            Pilih Meja
+
+          </h1>
+
+          <button
+            onClick={() =>
+              setShowPopupMeja(
+                false
+              )
+            }
+            className="
+            w-[45px]
+            h-[45px]
+            rounded-2xl
+            bg-red-500
+            hover:bg-red-600
+            text-white
+            text-2xl
+            font-black
+            transition-all
+            "
+          >
+
+            ×
+
+          </button>
+
+        </div>
+
+        {/* GRID */}
+
+        <div
+          className="
+          grid
+          grid-cols-2
+          md:grid-cols-5
+          gap-4
+          "
+        >
+
+          {
+            currentMeja.map(
+              (
+                nomor
+              ) => {
+
+                const dipakai =
+                  mejaDipakai.includes(
+                    nomor
+                  );
+
+                const selected =
+                  selectedMeja ===
+                  nomor;
+
+                return (
+
+                  <button
+                    key={nomor}
+
+                    onClick={() =>
+                      pilihMeja(
+                        nomor
+                      )
+                    }
+
+                    disabled={
+                      dipakai
+                    }
+
+                    className={`
+                    h-[74px]
+                    rounded-[20px]
+                    font-black
+                    text-2xl
+                    transition-all
+                    duration-300
+
+                    ${
+                      selected
+
+                        ? "bg-[#FF8C00] text-white scale-105"
+
+                        : dipakai
+
+                        ? "bg-gray-300 text-white cursor-not-allowed"
+
+                        : "bg-[#56657F] hover:bg-[#002366] text-white"
+                    }
+                    `}
+                  >
+
+                    {nomor}
+
+                  </button>
+
+                );
+
+              }
+            )
+          }
+
+        </div>
+
+        {/* PAGINATION */}
+
+        <div
+          className="
+          flex
+          items-center
+          justify-between
+          mt-6
+          "
+        >
+
+          <button
+            disabled={
+              currentPage ===
+              1
+            }
+            onClick={() =>
+              setCurrentPage(
+                (
+                  prev
+                ) =>
+                  prev - 1
+              )
+            }
+            className="
+            px-6
+            h-[50px]
+            rounded-2xl
+            bg-gray-200
+            hover:bg-gray-300
+            text-gray-700
+            font-bold
+            transition-all
+            disabled:opacity-40
+            disabled:hover:bg-gray-200
+            "
+          >
+
+            Sebelumnya
+
+          </button>
+
+          <p
+            className="
+            font-black
+            text-[#002366]
+            text-lg
+            "
+          >
+
+            {
+              currentMeja[0]
+            }
+
+            {" - "}
+
+            {
+              currentMeja[
+                currentMeja.length -
+                  1
+              ]
+            }
+
+          </p>
+
+          <button
+            disabled={
+              currentPage ===
+              10
+            }
+            onClick={() =>
+              setCurrentPage(
+                (
+                  prev
+                ) =>
+                  prev + 1
+              )
+            }
+            className="
+            px-6
+            h-[50px]
+            rounded-2xl
+            bg-[#FF8C00]
+            hover:bg-orange-600
+            text-white
+            font-bold
+            transition-all
+            disabled:opacity-40
+            disabled:hover:bg-[#FF8C00]
+            "
+          >
+
+            Berikutnya
+
+          </button>
+
+        </div>
+
+        {/* BUTTON */}
+
+        <button
+          onClick={() =>
+            setShowPopupMeja(
+              false
+            )
+          }
+
+          disabled={
+            !selectedMeja
+          }
+
+          className="
+          w-full
+          h-[56px]
+          rounded-[20px]
+          bg-[#8A9BC0]
+          hover:bg-[#6F84B3]
+          text-white
+          font-black
+          text-xl
+          mt-6
+          transition-all
+          disabled:opacity-50
+          disabled:hover:bg-[#8A9BC0]
+          "
+        >
+
+          Gunakan Meja{" "}
+
+          {
+            selectedMeja || ""
+          }
+
+        </button>
+
+      </div>
+
+    </div>
+
+  )
+}
+
+    </div>
+
+  );
 
 };
 

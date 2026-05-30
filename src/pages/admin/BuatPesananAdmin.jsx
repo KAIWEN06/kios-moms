@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "../../lib/supabaseClient";
+import toast from 'react-hot-toast';
 
 const AdminBuatPesanan = ({ cart, updateQty }) => {
 
@@ -27,11 +28,98 @@ const AdminBuatPesanan = ({ cart, updateQty }) => {
         await supabase
           .from('menu')
           .select('*')
-          .neq('stok', 'nonaktif');
+          .neq('stok', 'nonaktif')
 
       if (error) throw error;
 
-      setMenu(data || []);
+      /* ======================================================
+   AMBIL TOTAL PENJUALAN
+====================================================== */
+
+const {
+  data: pesananData
+} = await supabase
+  .from("pesanan")
+  .select("items")
+  .eq(
+    "is_checkout",
+    true
+  );
+
+const totalTerjual = {};
+
+(pesananData || []).forEach(
+  (pesanan) => {
+
+    let items = [];
+
+    try {
+
+      items =
+        typeof pesanan.items ===
+        "string"
+
+          ? JSON.parse(
+              pesanan.items
+            )
+
+          : pesanan.items || [];
+
+    } catch {
+
+      items = [];
+
+    }
+
+    items.forEach((item) => {
+
+      if (!totalTerjual[item.id]) {
+
+        totalTerjual[item.id] = 0;
+
+      }
+
+      totalTerjual[item.id] +=
+        Number(item.qty) || 0;
+
+    });
+
+  }
+);
+
+/* ======================================================
+   SORT MENU
+====================================================== */
+
+const sortedMenu =
+  [...(data || [])].sort(
+    (a, b) => {
+
+      // MENU HABIS KE BAWAH
+      if (
+        a.stok === "kosong" &&
+        b.stok !== "kosong"
+      ) {
+        return 1;
+      }
+
+      if (
+        a.stok !== "kosong" &&
+        b.stok === "kosong"
+      ) {
+        return -1;
+      }
+
+      // PALING LARIS KE ATAS
+      return (
+        (totalTerjual[b.id] || 0) -
+        (totalTerjual[a.id] || 0)
+      );
+
+    }
+  );
+
+setMenu(sortedMenu);
 
     } catch (error) {
 
@@ -216,9 +304,24 @@ const AdminBuatPesanan = ({ cart, updateQty }) => {
         <div className="fixed bottom-10 right-6 z-50">
 
           <button
-            onClick={() =>
-              navigate('/admin/pesanan')
-            }
+            onClick={() => {
+
+              // VALIDASI MENU
+              if (totalItem <= 0) {
+
+                toast.error(
+                  "Pilih menu terlebih dahulu"
+                );
+
+                return;
+
+              }
+
+              navigate(
+                '/admin/pesanan'
+              );
+
+            }}
             className="bg-[#FF8C00] text-white flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all"
           >
 

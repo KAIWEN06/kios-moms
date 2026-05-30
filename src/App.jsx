@@ -1,82 +1,98 @@
 import {
   useState,
   useEffect
-} from 'react';
+} from "react";
 
 import {
   Routes,
   Route,
-  useNavigate
-} from 'react-router-dom';
+} from "react-router-dom";
 
-import { supabase } from "./lib/supabaseClient";
+import { supabase }
+from "./lib/supabaseClient";
 
 import toast from "react-hot-toast";
 
-import './App.css';
+import "./App.css";
 
 // =========================
 // LAYOUT ADMIN
 // =========================
 
-import AdminLayout from './layouts/admin/LayoutAdmin';
+import AdminLayout
+from "./layouts/admin/LayoutAdmin";
 
 // =========================
 // LAYOUT PEMBELI
 // =========================
 
-import LayoutPembeli from './layouts/pembeli/LayoutPembeli';
+import LayoutPembeli
+from "./layouts/pembeli/LayoutPembeli";
 
 // =========================
 // AUTH
 // =========================
 
-import LoginAdmin from './pages/admin/adminpages/LoginAdmin';
+import LoginAdmin
+from "./pages/admin/LoginAdmin";
 
-import ResetPassword from './pages/admin/adminpages/ResetPassword';
+import ResetPassword
+from "./pages/admin/ResetPassword";
 
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute
+from "./routes/ProtectedRoute";
 
 // =========================
 // ADMIN PAGES
 // =========================
 
-import AdminBeranda from './pages/admin/adminpages/BerandaAdmin';
+import AdminBeranda
+from "./pages/admin/BerandaAdmin";
 
-import AdminPesanan from './pages/admin/adminpages/PesananAdmin';
+import AdminPesanan
+from "./pages/admin/PesananAdmin";
 
-import AdminProsesPesanan from './pages/admin/adminpages/AdminProsesPesanan';
+import AdminProsesPesanan
+from "./pages/admin/AdminProsesPesanan";
 
-import AdminRiwayatPesanan from './pages/admin/adminpages/RiwayatPesananAdmin';
+import AdminRiwayatPesanan
+from "./pages/admin/RiwayatPesananAdmin";
 
-import AdminKelolaMenu from './pages/admin/adminpages/KelolaMenuAdmin';
+import AdminKelolaMenu
+from "./pages/admin/KelolaMenuAdmin";
 
-import AdminBuatPesanan from './pages/admin/adminpages/BuatPesananAdmin';
+import AdminBuatPesanan
+from "./pages/admin/BuatPesananAdmin";
 
-import HalamanLaporanAdmin from './pages/admin/adminpages/HalamanLaporanAdmin';
+import HalamanLaporanAdmin
+from "./pages/admin/HalamanLaporanAdmin";
 
 // =========================
 // PEMBELI PAGES
 // =========================
 
-import BerandaPembeli from './pages/pembeli/BerandaPembeli';
+import BerandaPembeli
+from "./pages/pembeli/BerandaPembeli";
 
-import DaftarMenuPembeli from './pages/pembeli/DaftarMenuPembeli';
+import DaftarMenuPembeli
+from "./pages/pembeli/DaftarMenuPembeli";
 
-import KeranjangPembeli from './pages/pembeli/KeranjangPembeli';
+import KeranjangPembeli
+from "./pages/pembeli/KeranjangPembeli";
 
-import KonfirmasiPesananPembeli from './pages/pembeli/KonfirmasiPesananPembeli';
+import KonfirmasiPesananPembeli
+from "./pages/pembeli/KonfirmasiPesananPembeli";
 
-import StatusPesananPembeli from './pages/pembeli/StatusPesananPembeli';
+import StatusPesananPembeli
+from "./pages/pembeli/StatusPesananPembeli";
 
-import RiwayatPesananPembeli from './pages/pembeli/RiwayatPesananPembeli';
+import RiwayatPesananPembeli
+from "./pages/pembeli/RiwayatPesananPembeli";
 
 function App() {
 
-  const navigate = useNavigate();
-
   // =========================
-  // STATE UTAMA
+  // STATE
   // =========================
 
   const [menu, setMenu] =
@@ -86,7 +102,7 @@ function App() {
     useState(true);
 
   // =========================
-  // CART LOCAL STORAGE
+  // CART
   // =========================
 
   const [cart, setCart] =
@@ -103,50 +119,8 @@ function App() {
 
     });
 
-  const [activeOrders, setActiveOrders] =
-    useState(() => {
-
-      const saved =
-        localStorage.getItem(
-          "activeOrders"
-        );
-
-      return saved
-        ? JSON.parse(saved)
-        : [];
-
-    });
-
-  const [historyOrders, setHistoryOrders] =
-    useState(() => {
-
-      const saved =
-        localStorage.getItem(
-          "historyOrders"
-        );
-
-      return saved
-        ? JSON.parse(saved)
-        : [];
-
-    });
-
-  const [occupiedTables, setOccupiedTables] =
-    useState(() => {
-
-      const saved =
-        localStorage.getItem(
-          "occupiedTables"
-        );
-
-      return saved
-        ? JSON.parse(saved)
-        : [];
-
-    });
-
   // =========================
-  // LOCAL STORAGE SAVE
+  // SAVE CART
   // =========================
 
   useEffect(() => {
@@ -158,77 +132,55 @@ function App() {
 
   }, [cart]);
 
-  useEffect(() => {
-
-    localStorage.setItem(
-      "activeOrders",
-      JSON.stringify(activeOrders)
-    );
-
-  }, [activeOrders]);
-
-  useEffect(() => {
-
-    localStorage.setItem(
-      "historyOrders",
-      JSON.stringify(historyOrders)
-    );
-
-  }, [historyOrders]);
-
-  useEffect(() => {
-
-    localStorage.setItem(
-      "occupiedTables",
-      JSON.stringify(occupiedTables)
-    );
-
-  }, [occupiedTables]);
-
   // =========================
   // FETCH MENU
   // =========================
 
-  const fetchMenu = async () => {
+  const fetchMenu =
+    async () => {
 
-    try {
+      try {
 
-      const {
-        data,
-        error
-      } = await supabase
-        .from('menu')
-        .select('*')
-        .order(
-          'nama',
-          {
-            ascending: true
-          }
+        const {
+          data,
+          error
+        } = await supabase
+          .from("menu")
+          .select("*")
+          .order(
+            "nama",
+            {
+              ascending: true
+            }
+          );
+
+        if (error)
+          throw error;
+
+        setMenu(data || []);
+
+      } catch (error) {
+
+        console.error(
+          "Gagal memuat menu:",
+          error.message
         );
 
-      if (error)
-        throw error;
+        toast.error(
+          "Gagal memuat menu"
+        );
 
-      setMenu(data || []);
+      } finally {
 
-    } catch (error) {
+        setLoading(false);
 
-      console.error(
-        "Gagal memuat menu:",
-        error.message
-      );
+      }
 
-      toast.error(
-        "Gagal memuat menu"
-      );
+    };
 
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
+  // =========================
+  // LOAD MENU
+  // =========================
 
   useEffect(() => {
 
@@ -237,47 +189,82 @@ function App() {
   }, []);
 
   // =========================
+  // REALTIME MENU
+  // =========================
+
+  useEffect(() => {
+
+    const channel =
+      supabase
+        .channel(
+          "menu-realtime"
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "menu"
+          },
+          () => {
+
+            fetchMenu();
+
+          }
+        )
+        .subscribe();
+
+    return () => {
+
+      supabase.removeChannel(
+        channel
+      );
+
+    };
+
+  }, []);
+
+  // =========================
   // UPDATE QTY
   // =========================
 
-  const updateQty = (
-    id,
-    delta
-  ) => {
+  const updateQty =
+    (id, delta) => {
 
-    setCart((prev) => {
+      setCart((prev) => {
 
-      const currentQty =
-        prev[id] || 0;
+        const currentQty =
+          prev[id] || 0;
 
-      const newQty =
-        Math.max(
-          0,
-          currentQty + delta
-        );
+        const newQty =
+          Math.max(
+            0,
+            currentQty + delta
+          );
 
-      if (newQty === 0) {
+        // HAPUS ITEM
+        if (newQty === 0) {
 
-        const updated =
-          { ...prev };
+          const updated =
+            { ...prev };
 
-        delete updated[id];
+          delete updated[id];
 
-        return updated;
+          return updated;
 
-      }
+        }
 
-      return {
+        return {
 
-        ...prev,
+          ...prev,
 
-        [id]: newQty
+          [id]: newQty
 
-      };
+        };
 
-    });
+      });
 
-  };
+    };
 
   // =========================
   // CLEAR CART
@@ -308,30 +295,28 @@ function App() {
         const {
           error
         } = await supabase
-          .from('menu')
+          .from("menu")
           .update({
 
             stok: status
 
           })
           .eq(
-            'id',
+            "id",
             id
           );
 
         if (error)
           throw error;
 
-        await fetchMenu();
-
         toast.success(
-          "Stok menu berhasil diperbarui"
+          "Status menu berhasil diperbarui"
         );
 
       } catch (error) {
 
         console.error(
-          'Gagal update stok:',
+          "Gagal update stok:",
           error.message
         );
 
@@ -340,168 +325,6 @@ function App() {
         );
 
       }
-
-    };
-
-  // =========================
-  // PINDAHKAN KE PROSES
-  // =========================
-
-  const pindahkanKeProses = (
-    meja,
-    email,
-    payMethod,
-    totalHarga,
-    cartItems
-  ) => {
-
-    const mejaNum =
-      parseInt(meja);
-
-    if (
-      occupiedTables.includes(
-        mejaNum
-      )
-    ) {
-
-      toast.error(
-        `Meja No. ${mejaNum} sedang digunakan`
-      );
-
-      return;
-
-    }
-
-    const itemsOrdered =
-      cartItems.map((id) => {
-
-        const m =
-          menu.find(
-            (item) =>
-              String(item.id) ===
-              String(id)
-          );
-
-        return {
-
-          nama:
-            m?.nama ||
-            "Menu",
-
-          qty:
-            cart[id],
-
-          subtotal:
-            (m?.harga || 0) *
-            cart[id]
-
-        };
-
-      });
-
-    const newOrder = {
-
-      id:
-        "KM-" +
-        Date.now()
-          .toString()
-          .slice(-6),
-
-      meja: mejaNum,
-
-      items: itemsOrdered,
-
-      total: totalHarga,
-
-      status: "diproses",
-
-      metode: payMethod,
-
-      email: email,
-
-      waktu:
-        new Date()
-          .toLocaleTimeString()
-
-    };
-
-    setActiveOrders([
-
-      ...activeOrders,
-
-      newOrder
-
-    ]);
-
-    setOccupiedTables([
-
-      ...occupiedTables,
-
-      mejaNum
-
-    ]);
-
-    clearCart();
-
-    toast.success(
-      "Pesanan berhasil diproses"
-    );
-
-    navigate(
-      '/admin/proses-pesanan'
-    );
-
-  };
-
-  // =========================
-  // UBAH KE SELESAI
-  // =========================
-
-  const ubahKeSelesai =
-    (idx) => {
-
-      const order =
-        activeOrders[idx];
-
-      setHistoryOrders([
-
-        ...historyOrders,
-
-        {
-
-          ...order,
-
-          status: 'selesai'
-
-        }
-
-      ]);
-
-      setOccupiedTables(
-
-        occupiedTables.filter(
-          (m) =>
-            m !== order.meja
-        )
-
-      );
-
-      setActiveOrders(
-
-        activeOrders.filter(
-          (_, i) =>
-            i !== idx
-        )
-
-      );
-
-      toast.success(
-        "Pesanan selesai"
-      );
-
-      navigate(
-        '/admin/riwayat-pesanan'
-      );
 
     };
 
@@ -519,9 +342,14 @@ function App() {
 
         ...item,
 
-        qty: cart[item.id]
+        qty:
+          cart[item.id]
 
       }));
+
+  // =========================
+  // TOTAL HARGA
+  // =========================
 
   const totalHargaPembeli =
     keranjangPembeli.reduce(
@@ -546,7 +374,15 @@ function App() {
 
     return (
 
-      <div className="h-screen flex items-center justify-center font-bold">
+      <div
+        className="
+        h-screen
+        flex
+        items-center
+        justify-center
+        font-bold
+        "
+      >
 
         Memuat Data Kios Mom's...
 
@@ -558,7 +394,15 @@ function App() {
 
   return (
 
-    <div className="w-full min-h-screen text-[#333] font-['Poppins',sans-serif] overflow-x-hidden">
+    <div
+      className="
+      w-full
+      min-h-screen
+      text-[#333]
+      font-['Poppins',sans-serif]
+      overflow-x-hidden
+      "
+    >
 
       <Routes>
 
@@ -577,7 +421,7 @@ function App() {
         />
 
         {/* ========================= */}
-        {/* ROUTE PEMBELI */}
+        {/* PEMBELI */}
         {/* ========================= */}
 
         <Route
@@ -609,10 +453,15 @@ function App() {
             element={
 
               <KeranjangPembeli
-                keranjang={keranjangPembeli}
+                keranjang={
+                  keranjangPembeli
+                }
                 updateQty={updateQty}
                 hapusMenu={(id) =>
-                  updateQty(id, -999)
+                  updateQty(
+                    id,
+                    -999
+                  )
                 }
               />
 
@@ -624,8 +473,12 @@ function App() {
             element={
 
               <KonfirmasiPesananPembeli
-                keranjang={keranjangPembeli}
-                totalHarga={totalHargaPembeli}
+                keranjang={
+                  keranjangPembeli
+                }
+                totalHarga={
+                  totalHargaPembeli
+                }
                 clearCart={clearCart}
               />
 
@@ -649,12 +502,13 @@ function App() {
         </Route>
 
         {/* ========================= */}
-        {/* ROUTE ADMIN */}
+        {/* ADMIN */}
         {/* ========================= */}
 
         <Route
           path="/admin"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
@@ -664,12 +518,14 @@ function App() {
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/buat-pesanan"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
@@ -683,12 +539,14 @@ function App() {
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/pesanan"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
@@ -698,74 +556,76 @@ function App() {
                   menu={menu}
                   updateQty={updateQty}
                   clearCart={clearCart}
-                  pindahkanKeProses={pindahkanKeProses}
                 />
 
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/proses-pesanan"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
 
-                <AdminProsesPesanan
-                  activeOrders={activeOrders}
-                  ubahKeSelesai={ubahKeSelesai}
-                />
+                <AdminProsesPesanan />
 
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/riwayat-pesanan"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
 
-                <AdminRiwayatPesanan
-                  historyOrders={historyOrders}
-                />
+                <AdminRiwayatPesanan />
 
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/kelola-menu"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
 
                 <AdminKelolaMenu
                   menu={menu}
+                  fetchMenu={fetchMenu}
                   updateStokMenu={
                     updateStokMenu
                   }
-                  fetchMenu={fetchMenu}
                 />
 
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 
         <Route
           path="/admin/laporan"
           element={
+
             <ProtectedRoute>
 
               <AdminLayout>
@@ -775,6 +635,7 @@ function App() {
               </AdminLayout>
 
             </ProtectedRoute>
+
           }
         />
 

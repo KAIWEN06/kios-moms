@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useMemo,
   useState
 } from "react";
 
@@ -7,198 +8,534 @@ import {
   useNavigate
 } from "react-router-dom";
 
-import toast from "react-hot-toast";
+import {
+  supabase
+} from "../../lib/supabaseClient";
+
+import toast
+from "react-hot-toast";
 
 const KeranjangPembeli = () => {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  // =========================
-  // STATE
-  // =========================
+  /* =====================================================
+     STATE
+  ===================================================== */
 
   const [keranjang, setKeranjang] =
+    useState([]);
+
+  const [menuAktif, setMenuAktif] =
     useState([]);
 
   const [loading, setLoading] =
     useState(true);
 
-  // =========================
-  // FETCH KERANJANG
-  // =========================
-
-  const fetchKeranjang = () => {
-
-    try {
-
-      setLoading(true);
-
-      const dataKeranjang =
-        JSON.parse(
-          localStorage.getItem(
-            "keranjang"
-          )
-        ) || [];
-
-      setKeranjang(
-        dataKeranjang
-      );
-
-    } catch (error) {
-
-      console.log(error);
-
-      toast.error(
-        "Gagal mengambil keranjang"
-      );
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
+  /* =====================================================
+     LOAD AWAL
+  ===================================================== */
 
   useEffect(() => {
+
+    fetchMenu();
 
     fetchKeranjang();
 
   }, []);
 
-  // =========================
-  // TAMBAH QTY
-  // =========================
+  /* =====================================================
+     REALTIME MENU
+  ===================================================== */
 
-  const tambahQty = (id) => {
+  useEffect(() => {
 
-    const updated =
-      keranjang.map((item) => {
+    const channel =
+      supabase
+        .channel(
+          "realtime-keranjang"
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "menu"
+          },
+          () => {
 
-        if (item.id === id) {
+            fetchMenu();
 
-          return {
-            ...item,
-            qty: item.qty + 1
-          };
+          }
+        )
+        .subscribe();
+
+    return () => {
+
+      supabase.removeChannel(
+        channel
+      );
+
+    };
+
+  }, []);
+
+  /* =====================================================
+     FETCH MENU
+  ===================================================== */
+
+  const fetchMenu =
+    async () => {
+
+      try {
+
+        const {
+          data,
+          error
+        } = await supabase
+          .from("menu")
+          .select("*")
+          .eq(
+              "stok",
+              "ada"
+            )
+          .eq(
+            "is_aktif",
+            true
+          );
+
+        if (error)
+          throw error;
+
+        const availableMenu =
+          data || [];
+
+        setMenuAktif(
+          availableMenu
+        );
+
+        validasiKeranjang(
+          availableMenu
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    };
+
+  /* =====================================================
+     FETCH KERANJANG
+  ===================================================== */
+
+  const fetchKeranjang =
+    () => {
+
+      try {
+
+        setLoading(true);
+
+        const dataKeranjang =
+          JSON.parse(
+            localStorage.getItem(
+              "keranjang"
+            )
+          ) || [];
+
+        setKeranjang(
+          dataKeranjang
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+        toast.error(
+          "Gagal memuat keranjang"
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+  /* =====================================================
+     VALIDASI KERANJANG
+  ===================================================== */
+
+  const validasiKeranjang =
+    (availableMenu) => {
+
+      try {
+
+        const cart =
+          JSON.parse(
+            localStorage.getItem(
+              "keranjang"
+            )
+          ) || [];
+
+        const menuIds =
+          availableMenu.map(
+            (item) =>
+              item.id
+          );
+
+        const invalidItems =
+          cart.filter(
+            (item) =>
+              !menuIds.includes(
+                item.id
+              )
+          );
+
+        if (
+          invalidItems.length > 0
+        ) {
+
+          invalidItems.forEach(
+            (item) => {
+
+              toast.error(
+                `${item.nama} sudah tidak tersedia`
+              );
+
+            }
+          );
 
         }
 
-        return item;
+        const updatedCart =
+          cart.filter(
+            (item) =>
+              menuIds.includes(
+                item.id
+              )
+          );
 
-      });
+        setKeranjang(
+          updatedCart
+        );
 
-    setKeranjang(updated);
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updatedCart
+          )
+        );
 
-    localStorage.setItem(
-      "keranjang",
-      JSON.stringify(updated)
-    );
+      } catch (error) {
 
-  };
+        console.log(error);
 
-  // =========================
-  // KURANG QTY
-  // =========================
+      }
 
-  const kurangQty = (id) => {
+    };
 
-    const updated =
-      keranjang
-        .map((item) => {
+  /* =====================================================
+     VALIDASI MENU
+  ===================================================== */
 
-          if (
-            item.id === id &&
-            item.qty > 1
-          ) {
+  const menuMasihAda =
+    (id) => {
 
-            return {
-              ...item,
-              qty:
-                item.qty - 1
-            };
-
-          }
-
-          return item;
-
-        });
-
-    setKeranjang(updated);
-
-    localStorage.setItem(
-      "keranjang",
-      JSON.stringify(updated)
-    );
-
-  };
-
-  // =========================
-  // HAPUS MENU
-  // =========================
-
-  const hapusItem = (id) => {
-
-    const updated =
-      keranjang.filter(
+      return menuAktif.some(
         (item) =>
-          item.id !== id
+          item.id === id
       );
 
-    setKeranjang(updated);
+    };
 
-    localStorage.setItem(
-      "keranjang",
-      JSON.stringify(updated)
-    );
+  /* =====================================================
+     TAMBAH QTY
+  ===================================================== */
 
-    toast.success(
-      "Menu dihapus"
-    );
+  const tambahQty =
+    (id) => {
 
-  };
+      try {
 
-  // =========================
-  // TOTAL HARGA
-  // =========================
+        if (
+          !menuMasihAda(id)
+        ) {
+
+          toast.error(
+            "Menu sudah tidak tersedia"
+          );
+
+          return;
+
+        }
+
+        const updated =
+          keranjang.map(
+            (item) => {
+
+              if (
+                item.id === id
+              ) {
+
+                return {
+
+                  ...item,
+
+                  qty:
+                    item.qty + 1
+
+                };
+
+              }
+
+              return item;
+
+            }
+          );
+
+        setKeranjang(
+          updated
+        );
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updated
+          )
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    };
+
+  /* =====================================================
+     KURANG QTY
+  ===================================================== */
+
+  const kurangQty =
+    (id) => {
+
+      try {
+
+        let updated =
+          keranjang.map(
+            (item) => {
+
+              if (
+                item.id === id
+              ) {
+
+                return {
+
+                  ...item,
+
+                  qty:
+                    item.qty - 1
+
+                };
+
+              }
+
+              return item;
+
+            }
+          );
+
+        updated =
+          updated.filter(
+            (item) =>
+              item.qty > 0
+          );
+
+        setKeranjang(
+          updated
+        );
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updated
+          )
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    };
+
+  /* =====================================================
+     HAPUS ITEM
+  ===================================================== */
+
+  const hapusItem =
+    (id) => {
+
+      try {
+
+        const updated =
+          keranjang.filter(
+            (item) =>
+              item.id !== id
+          );
+
+        setKeranjang(
+          updated
+        );
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updated
+          )
+        );
+
+        toast.success(
+          "Menu dihapus"
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    };
+
+  /* =====================================================
+     TOTAL HARGA
+  ===================================================== */
 
   const totalHarga =
-    keranjang.reduce(
-      (acc, item) =>
+    useMemo(() => {
 
-        acc +
-        item.harga *
-        item.qty,
+      return keranjang.reduce(
+        (acc, item) => {
 
-      0
-    );
+          return (
+            acc +
+            Number(
+              item.harga
+            ) *
+              Number(
+                item.qty
+              )
+          );
 
-  // =========================
-  // LANJUT KONFIRMASI
-  // =========================
-
-  const handleLanjut = () => {
-
-    if (keranjang.length === 0) {
-
-      toast.error(
-        "Keranjang kosong"
+        },
+        0
       );
 
-      return;
+    }, [keranjang]);
 
-    }
+  /* =====================================================
+     LANJUT KONFIRMASI
+  ===================================================== */
 
-    localStorage.setItem(
-      "checkoutItems",
-      JSON.stringify(keranjang)
+  const handleLanjut =
+    () => {
+
+      if (
+        keranjang.length === 0
+      ) {
+
+        toast.error(
+          "Keranjang kosong"
+        );
+
+        return;
+
+      }
+
+      // VALIDASI FINAL
+      const invalidItems =
+        keranjang.filter(
+          (item) =>
+            !menuMasihAda(
+              item.id
+            )
+        );
+
+      if (
+        invalidItems.length > 0
+      ) {
+
+        invalidItems.forEach(
+          (item) => {
+
+            toast.error(
+              `${item.nama} sudah tidak tersedia`
+            );
+
+          }
+        );
+
+        validasiKeranjang(
+          menuAktif
+        );
+
+        return;
+
+      }
+
+      localStorage.setItem(
+        "checkoutItems",
+        JSON.stringify(
+          keranjang
+        )
+      );
+
+      navigate(
+        "/konfirmasi-pesanan"
+      );
+
+    };
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
+
+  if (loading) {
+
+    return (
+
+      <div
+        className="
+        min-h-screen
+        flex
+        items-center
+        justify-center
+        bg-[#f5f6fa]
+        "
+      >
+
+        <div
+          className="
+          w-14
+          h-14
+          rounded-full
+          border-4
+          border-[#002366]
+          border-t-transparent
+          animate-spin
+          "
+        ></div>
+
+      </div>
+
     );
 
-    navigate(
-      "/konfirmasi-pesanan"
-    );
-
-  };
+  }
 
   return (
 
@@ -213,9 +550,7 @@ const KeranjangPembeli = () => {
       "
     >
 
-      {/* ========================= */}
       {/* HEADER */}
-      {/* ========================= */}
 
       <div
         className="
@@ -258,8 +593,6 @@ const KeranjangPembeli = () => {
 
         </div>
 
-        {/* BUTTON */}
-
         <button
           onClick={() =>
             navigate(
@@ -274,7 +607,6 @@ const KeranjangPembeli = () => {
           py-4
           rounded-2xl
           font-black
-          transition-all
           "
         >
 
@@ -284,52 +616,16 @@ const KeranjangPembeli = () => {
 
       </div>
 
-      {/* ========================= */}
-      {/* LOADING */}
-      {/* ========================= */}
-
-      {
-        loading && (
-
-          <div
-            className="
-            bg-white
-            rounded-[30px]
-            p-10
-            text-center
-            "
-          >
-
-            <h2
-              className="
-              text-2xl
-              font-black
-              text-[#002366]
-              "
-            >
-
-              Memuat Keranjang...
-
-            </h2>
-
-          </div>
-
-        )
-      }
-
-      {/* ========================= */}
       {/* EMPTY */}
-      {/* ========================= */}
 
       {
-        !loading &&
         keranjang.length === 0 && (
 
           <div
             className="
             bg-white
             rounded-[30px]
-            p-10
+            p-12
             text-center
             "
           >
@@ -340,7 +636,7 @@ const KeranjangPembeli = () => {
 
             </div>
 
-            <h2
+            <h1
               className="
               text-3xl
               font-black
@@ -351,221 +647,205 @@ const KeranjangPembeli = () => {
 
               Keranjang Kosong
 
-            </h2>
-
-            <button
-              onClick={() =>
-                navigate(
-                  "/daftar-menu"
-                )
-              }
-              className="
-              mt-8
-              bg-[#FF8C00]
-              hover:bg-orange-600
-              text-white
-              px-8
-              py-4
-              rounded-2xl
-              font-black
-              "
-            >
-
-              Pilih Menu
-
-            </button>
+            </h1>
 
           </div>
 
         )
       }
 
-      {/* ========================= */}
-      {/* LIST MENU */}
-      {/* ========================= */}
+      {/* LIST */}
 
       <div className="space-y-5">
 
-        {keranjang.map(
-          (item) => (
-
-            <div
-              key={item.id}
-              className="
-              bg-white
-              rounded-[30px]
-              p-5
-              shadow-sm
-              "
-            >
+        {
+          keranjang.map(
+            (item) => (
 
               <div
+                key={item.id}
                 className="
-                flex
-                flex-col
-                lg:flex-row
-                gap-6
+                bg-white
+                rounded-[30px]
+                p-5
+                shadow-sm
                 "
               >
 
-                {/* IMAGE */}
-
-                <img
-                  src={item.gambar}
-                  alt={item.nama}
+                <div
                   className="
-                  w-full
-                  lg:w-52
-                  h-52
-                  object-cover
-                  rounded-3xl
+                  flex
+                  flex-col
+                  lg:flex-row
+                  gap-6
                   "
-                />
+                >
 
-                {/* CONTENT */}
+                  {/* IMAGE */}
 
-                <div className="flex-1">
-
-                  <div
+                  <img
+                    src={item.gambar}
+                    alt={item.nama}
                     className="
-                    flex
-                    justify-between
-                    gap-4
+                    w-full
+                    lg:w-52
+                    h-52
+                    object-cover
+                    rounded-3xl
                     "
-                  >
+                  />
 
-                    <div>
+                  {/* CONTENT */}
 
-                      <h2
+                  <div className="flex-1">
+
+                    <div
+                      className="
+                      flex
+                      justify-between
+                      gap-4
+                      "
+                    >
+
+                      <div>
+
+                        <h1
+                          className="
+                          text-3xl
+                          md:text-5xl
+                          font-black
+                          text-[#002366]
+                          "
+                        >
+
+                          {
+                            item.nama
+                          }
+
+                        </h1>
+
+                        <h2
+                          className="
+                          text-[#FF8C00]
+                          font-black
+                          text-3xl
+                          mt-3
+                          "
+                        >
+
+                          Rp{" "}
+
+                          {
+                            Number(
+                              item.harga
+                            ).toLocaleString(
+                              "id-ID"
+                            )
+                          }
+
+                        </h2>
+
+                      </div>
+
+                      {/* HAPUS */}
+
+                      <button
+                        onClick={() =>
+                          hapusItem(
+                            item.id
+                          )
+                        }
                         className="
-                        text-3xl
-                        md:text-5xl
+                        bg-red-100
+                        hover:bg-red-200
+                        text-red-600
+                        px-5
+                        py-3
+                        h-fit
+                        rounded-2xl
                         font-black
-                        text-[#002366]
                         "
                       >
 
-                        {item.nama}
+                        Hapus
 
-                      </h2>
-
-                      <h3
-                        className="
-                        text-[#FF8C00]
-                        font-black
-                        text-3xl
-                        mt-3
-                        "
-                      >
-
-                        Rp{" "}
-
-                        {Number(
-                          item.harga
-                        ).toLocaleString()}
-
-                      </h3>
+                      </button>
 
                     </div>
-
-                    {/* HAPUS */}
-
-                    <button
-                      onClick={() =>
-                        hapusItem(
-                          item.id
-                        )
-                      }
-                      className="
-                      bg-red-100
-                      hover:bg-red-200
-                      text-red-600
-                      px-5
-                      py-3
-                      h-fit
-                      rounded-2xl
-                      font-black
-                      "
-                    >
-
-                      Hapus
-
-                    </button>
-
-                  </div>
-
-                  {/* QTY */}
-
-                  <div
-                    className="
-                    flex
-                    items-center
-                    gap-5
-                    mt-10
-                    "
-                  >
-
-                    {/* MIN */}
-
-                    <button
-                      onClick={() =>
-                        kurangQty(
-                          item.id
-                        )
-                      }
-                      className="
-                      w-16
-                      h-16
-                      bg-gray-200
-                      hover:bg-gray-300
-                      rounded-2xl
-                      text-4xl
-                      font-black
-                      text-[#333]
-                      "
-                    >
-
-                      -
-
-                    </button>
 
                     {/* QTY */}
 
                     <div
                       className="
-                      text-4xl
-                      font-black
-                      text-[#002366]
+                      flex
+                      items-center
+                      gap-5
+                      mt-10
                       "
                     >
 
-                      {item.qty}
+                      {/* MIN */}
+
+                      <button
+                        onClick={() =>
+                          kurangQty(
+                            item.id
+                          )
+                        }
+                        className="
+                        w-16
+                        h-16
+                        bg-gray-200
+                        rounded-2xl
+                        text-4xl
+                        font-black
+                        "
+                      >
+
+                        -
+
+                      </button>
+
+                      {/* QTY */}
+
+                      <div
+                        className="
+                        text-4xl
+                        font-black
+                        text-[#002366]
+                        "
+                      >
+
+                        {
+                          item.qty
+                        }
+
+                      </div>
+
+                      {/* PLUS */}
+
+                      <button
+                        onClick={() =>
+                          tambahQty(
+                            item.id
+                          )
+                        }
+                        className="
+                        w-16
+                        h-16
+                        bg-[#002366]
+                        rounded-2xl
+                        text-4xl
+                        font-black
+                        text-white
+                        "
+                      >
+
+                        +
+
+                      </button>
 
                     </div>
-
-                    {/* PLUS */}
-
-                    <button
-                      onClick={() =>
-                        tambahQty(
-                          item.id
-                        )
-                      }
-                      className="
-                      w-16
-                      h-16
-                      bg-[#002366]
-                      hover:bg-blue-950
-                      rounded-2xl
-                      text-4xl
-                      font-black
-                      text-white
-                      "
-                    >
-
-                      +
-
-                    </button>
 
                   </div>
 
@@ -573,16 +853,13 @@ const KeranjangPembeli = () => {
 
               </div>
 
-            </div>
-
+            )
           )
-        )}
+        }
 
       </div>
 
-      {/* ========================= */}
-      {/* TOTAL FIXED */}
-      {/* ========================= */}
+      {/* TOTAL */}
 
       {
         keranjang.length > 0 && (
@@ -633,13 +910,15 @@ const KeranjangPembeli = () => {
 
                 Rp{" "}
 
-                {totalHarga.toLocaleString()}
+                {
+                  totalHarga.toLocaleString(
+                    "id-ID"
+                  )
+                }
 
               </h2>
 
             </div>
-
-            {/* BUTTON */}
 
             <button
               onClick={
@@ -653,7 +932,6 @@ const KeranjangPembeli = () => {
               py-4
               rounded-2xl
               font-black
-              transition-all
               "
             >
 

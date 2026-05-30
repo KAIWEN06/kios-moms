@@ -361,15 +361,15 @@ const KelolaMenuAdmin = ({
   // =========================
 
   const filteredMenu =
-    menu.filter((m) =>
+  menu.filter((m) =>
 
-      activeTab === 'aktif'
-        ? m.stok !==
-          'nonaktif'
-        : m.stok ===
-          'nonaktif'
+    activeTab === 'aktif'
 
-    );
+      ? m.stok !== 'nonaktif'
+
+      : m.stok === 'nonaktif'
+
+  );
 
   // =========================
   // PAGINATION

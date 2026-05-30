@@ -1,14 +1,25 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate
+} from "react-router-dom";
 
-import { supabase } from "../../config/supabase";
+import {
+  supabase
+} from "../../lib/supabaseClient";
 
-import { toast } from "react-hot-toast";
+import {
+  toast
+} from "react-hot-toast";
 
 export default function DaftarMenuPembeli() {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   /* =====================================================
      STATE
@@ -17,11 +28,16 @@ export default function DaftarMenuPembeli() {
   const [menu, setMenu] =
     useState([]);
 
-  const [keranjang, setKeranjang] =
-    useState([]);
+  const [
+    keranjang,
+    setKeranjang
+  ] = useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   /* =====================================================
-     LOAD DATA
+     LOAD AWAL
   ===================================================== */
 
   useEffect(() => {
@@ -33,7 +49,45 @@ export default function DaftarMenuPembeli() {
   }, []);
 
   /* =====================================================
-     AMBIL MENU DARI DATABASE
+     REALTIME MENU
+  ===================================================== */
+
+  useEffect(() => {
+
+    const channel =
+      supabase
+        .channel(
+          "realtime-menu-pembeli"
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "menu"
+          },
+          async () => {
+
+            await ambilMenu();
+
+            ambilKeranjang();
+
+          }
+        )
+        .subscribe();
+
+    return () => {
+
+      supabase.removeChannel(
+        channel
+      );
+
+    };
+
+  }, []);
+
+  /* =====================================================
+     AMBIL MENU
   ===================================================== */
 
   const ambilMenu =
@@ -41,15 +95,17 @@ export default function DaftarMenuPembeli() {
 
       try {
 
+        setLoading(true);
+
         const {
           data,
           error
         } = await supabase
           .from("menu")
           .select("*")
-          .eq(
+          .neq(
             "stok",
-            "ada"
+            "nonaktif"
           )
           .eq(
             "is_aktif",
@@ -62,20 +118,140 @@ export default function DaftarMenuPembeli() {
             }
           );
 
-        if (error) {
+        if (error)
+          throw error;
 
-          console.log(error);
+        const menuReady =
+      data || [];
 
-          toast.error(
-            "Gagal mengambil menu"
-          );
+    /* =====================================================
+      HITUNG TOTAL TERJUAL
+    ===================================================== */
 
-          return;
+    const {
+      data: pesananData
+    } = await supabase
+      .from("pesanan")
+      .select("items")
+      .eq(
+        "is_checkout",
+        true
+      );
+
+    const totalTerjual = {};
+
+    (pesananData || []).forEach(
+      (pesanan) => {
+
+        let items = [];
+
+        try {
+
+          items =
+            typeof pesanan.items ===
+            "string"
+
+              ? JSON.parse(
+                  pesanan.items
+                )
+
+              : pesanan.items || [];
+
+        } catch {
+
+          items = [];
 
         }
 
-        setMenu(
-          data || []
+        items.forEach((item) => {
+
+          if (!totalTerjual[item.id]) {
+
+            totalTerjual[item.id] = 0;
+
+          }
+
+          totalTerjual[item.id] +=
+            Number(item.qty) || 0;
+
+        });
+
+      }
+    );
+
+    /* =====================================================
+      SORTING MENU
+    ===================================================== */
+
+    const sortedMenu =
+      [...menuReady].sort(
+        (a, b) => {
+
+          // MENU HABIS KE BAWAH
+          if (
+            a.stok === "kosong" &&
+            b.stok !== "kosong"
+          ) {
+            return 1;
+          }
+
+          if (
+            a.stok !== "kosong" &&
+            b.stok === "kosong"
+          ) {
+            return -1;
+          }
+
+          // PALING LARIS KE ATAS
+          return (
+            (totalTerjual[b.id] || 0) -
+            (totalTerjual[a.id] || 0)
+          );
+
+        }
+      );
+
+    setMenu(sortedMenu);
+
+            // VALIDASI CART
+            validasiKeranjang(
+              menuReady
+            );
+
+          } catch (error) {
+
+            console.log(error);
+
+            toast.error(
+              "Gagal mengambil menu"
+            );
+
+          } finally {
+
+            setLoading(false);
+
+          }
+
+        };
+
+  /* =====================================================
+     AMBIL KERANJANG
+  ===================================================== */
+
+  const ambilKeranjang =
+    () => {
+
+      try {
+
+        const dataKeranjang =
+          JSON.parse(
+            localStorage.getItem(
+              "keranjang"
+            )
+          ) || [];
+
+        setKeranjang(
+          dataKeranjang
         );
 
       } catch (error) {
@@ -87,262 +263,370 @@ export default function DaftarMenuPembeli() {
     };
 
   /* =====================================================
-     AMBIL KERANJANG DARI LOCAL STORAGE
+     VALIDASI KERANJANG
   ===================================================== */
 
-  const ambilKeranjang = () => {
+  const validasiKeranjang =
+    (menuAktif) => {
 
-    try {
+      try {
 
-      const dataKeranjang =
-        JSON.parse(
-          localStorage.getItem(
-            "keranjang"
+        const cart =
+          JSON.parse(
+            localStorage.getItem(
+              "keranjang"
+            )
+          ) || [];
+
+        const menuIds =
+          menuAktif.map(
+            (x) => x.id
+          );
+
+        const removedItems =
+          cart.filter(
+            (item) =>
+              !menuIds.includes(
+                item.id
+              )
+          );
+
+        if (
+          removedItems.length > 0
+        ) {
+
+          removedItems.forEach(
+            (item) => {
+
+              toast.error(
+                `${item.nama} sudah tidak tersedia`
+              );
+
+            }
+          );
+
+        }
+
+        const updatedCart =
+          cart.filter(
+            (item) =>
+              menuIds.includes(
+                item.id
+              )
+          );
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updatedCart
           )
-        ) || [];
+        );
 
-      setKeranjang(
-        dataKeranjang
-      );
+        setKeranjang(
+          updatedCart
+        );
 
-    } catch (error) {
+      } catch (error) {
 
-      console.log(error);
+        console.log(error);
 
-    }
+      }
 
-  };
+    };
 
   /* =====================================================
      TAMBAH PESANAN
   ===================================================== */
 
-  const tambahPesanan = (item) => {
+  const tambahPesanan =
+    (item) => {
 
-    try {
+      try {
 
-      const keranjangLama =
-        JSON.parse(
-          localStorage.getItem(
-            "keranjang"
-          )
-        ) || [];
-
-      const cek =
-        keranjangLama.find(
-          (x) =>
-            x.id === item.id
-        );
-
-      let updatedKeranjang;
-
-      /* =========================
-         JIKA SUDAH ADA
-      ========================= */
-
-      if (cek) {
-
-        updatedKeranjang =
-          keranjangLama.map(
-            (x) => {
-
-              if (
-                x.id === item.id
-              ) {
-
-                return {
-
-                  ...x,
-
-                  qty:
-                    x.qty + 1
-
-                };
-
-              }
-
-              return x;
-
-            }
+        const menuValid =
+          menu.find(
+            (x) =>
+              x.id === item.id
           );
 
-      } else {
+        if (!menuValid) {
 
-        /* =========================
-           JIKA BELUM ADA
-        ========================= */
+          toast.error(
+            "Menu tidak tersedia"
+          );
 
-        updatedKeranjang = [
+          return;
 
-          ...keranjangLama,
+        }
 
-          {
+        const keranjangLama =
+          JSON.parse(
+            localStorage.getItem(
+              "keranjang"
+            )
+          ) || [];
 
-            id: item.id,
+        const cek =
+          keranjangLama.find(
+            (x) =>
+              x.id === item.id
+          );
 
-            nama:
-              item.nama,
+        let updatedKeranjang;
 
-            harga:
-              item.harga,
+        if (cek) {
 
-            gambar:
-              item.img,
+          updatedKeranjang =
+            keranjangLama.map(
+              (x) => {
 
-            deskripsi:
-              item.deskripsi,
+                if (
+                  x.id === item.id
+                ) {
 
-            qty: 1
+                  return {
 
-          }
+                    ...x,
 
-        ];
+                    qty:
+                      x.qty + 1
+
+                  };
+
+                }
+
+                return x;
+
+              }
+            );
+
+        } else {
+
+          updatedKeranjang = [
+
+            ...keranjangLama,
+
+            {
+
+              id: item.id,
+
+              nama:
+                item.nama,
+
+              harga:
+                item.harga,
+
+              gambar:
+                item.img,
+
+              deskripsi:
+                item.deskripsi,
+
+              qty: 1
+
+            }
+
+          ];
+
+        }
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updatedKeranjang
+          )
+        );
+
+        setKeranjang(
+          updatedKeranjang
+        );
+
+        toast.success(
+          "Pesanan ditambahkan"
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+        toast.error(
+          "Gagal tambah pesanan"
+        );
 
       }
 
-      /* =========================
-         SIMPAN LOCAL STORAGE
-      ========================= */
-
-      localStorage.setItem(
-        "keranjang",
-        JSON.stringify(
-          updatedKeranjang
-        )
-      );
-
-      setKeranjang(
-        updatedKeranjang
-      );
-
-      toast.success(
-        "Pesanan ditambahkan"
-      );
-
-    } catch (error) {
-
-      console.log(error);
-
-      toast.error(
-        "Gagal tambah pesanan"
-      );
-
-    }
-
-  };
+    };
 
   /* =====================================================
      TAMBAH QTY
   ===================================================== */
 
-  const tambahQty = (item) => {
+  const tambahQty =
+    (item) => {
 
-    try {
+      try {
 
-      const updated =
-        keranjang.map((x) => {
+        const menuValid =
+          menu.find(
+            (x) =>
+              x.id === item.id
+          );
 
-          if (
-            x.id === item.id
-          ) {
+        if (!menuValid) {
 
-            return {
+          toast.error(
+            "Menu sudah tidak tersedia"
+          );
 
-              ...x,
+          return;
 
-              qty:
-                x.qty + 1
+        }
 
-            };
+        const updated =
+          keranjang.map((x) => {
 
-          }
+            if (
+              x.id === item.id
+            ) {
 
-          return x;
+              return {
 
-        });
+                ...x,
 
-      localStorage.setItem(
-        "keranjang",
-        JSON.stringify(
-          updated
-        )
-      );
+                qty:
+                  x.qty + 1
 
-      setKeranjang(updated);
+              };
 
-    } catch (error) {
+            }
 
-      console.log(error);
+            return x;
 
-    }
+          });
 
-  };
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updated
+          )
+        );
+
+        setKeranjang(updated);
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    };
 
   /* =====================================================
      KURANG QTY
   ===================================================== */
 
-  const kurangQty = (item) => {
+  const kurangQty =
+    (item) => {
 
-    try {
+      try {
 
-      let updated =
-        keranjang.map((x) => {
+        let updated =
+          keranjang.map((x) => {
 
-          if (
-            x.id === item.id
-          ) {
+            if (
+              x.id === item.id
+            ) {
 
-            return {
+              return {
 
-              ...x,
+                ...x,
 
-              qty:
-                x.qty - 1
+                qty:
+                  x.qty - 1
 
-            };
+              };
 
-          }
+            }
 
-          return x;
+            return x;
 
-        });
+          });
 
-      updated =
-        updated.filter(
-          (x) =>
-            x.qty > 0
+        updated =
+          updated.filter(
+            (x) =>
+              x.qty > 0
+          );
+
+        localStorage.setItem(
+          "keranjang",
+          JSON.stringify(
+            updated
+          )
         );
 
-      localStorage.setItem(
-        "keranjang",
-        JSON.stringify(
-          updated
-        )
-      );
+        setKeranjang(updated);
 
-      setKeranjang(updated);
+      } catch (error) {
 
-    } catch (error) {
+        console.log(error);
 
-      console.log(error);
+      }
 
-    }
-
-  };
+    };
 
   /* =====================================================
      TOTAL ITEM
   ===================================================== */
 
   const totalItem =
-    keranjang.reduce(
-      (acc, item) =>
+    useMemo(() => {
 
-        acc + item.qty,
+      return keranjang.reduce(
+        (acc, item) =>
 
-      0
+          acc + item.qty,
+
+        0
+      );
+
+    }, [keranjang]);
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
+
+  if (loading) {
+
+    return (
+
+      <div
+        className="
+        min-h-screen
+        flex
+        items-center
+        justify-center
+        bg-[#f5f6fa]
+        "
+      >
+
+        <div
+          className="
+          w-14
+          h-14
+          rounded-full
+          border-4
+          border-[#002366]
+          border-t-transparent
+          animate-spin
+          "
+        ></div>
+
+      </div>
+
     );
+
+  }
 
   return (
 
@@ -357,9 +641,7 @@ export default function DaftarMenuPembeli() {
       "
     >
 
-      {/* =====================================================
-         TITLE
-      ===================================================== */}
+      {/* TITLE */}
 
       <h1
         className="
@@ -386,9 +668,39 @@ export default function DaftarMenuPembeli() {
 
       </p>
 
-      {/* =====================================================
-         LIST MENU
-      ===================================================== */}
+      {/* EMPTY */}
+
+      {
+        menu.length === 0 && (
+
+          <div
+            className="
+            bg-white
+            rounded-[30px]
+            p-12
+            text-center
+            mt-8
+            "
+          >
+
+            <h1
+              className="
+              text-3xl
+              font-black
+              text-gray-400
+              "
+            >
+
+              Menu belum tersedia
+
+            </h1>
+
+          </div>
+
+        )
+      }
+
+      {/* LIST MENU */}
 
       <div
         className="
@@ -402,215 +714,292 @@ export default function DaftarMenuPembeli() {
         "
       >
 
-        {menu.map((item) => {
+        {
+          menu.map((item) => {
 
-          const existingItem =
-            keranjang.find(
-              (x) =>
-                x.id === item.id
-            );
+            const existingItem =
+              keranjang.find(
+                (x) =>
+                  x.id === item.id
+              );
 
-          return (
+            return (
 
-            <div
-              key={item.id}
-              className="
-              bg-white
-              rounded-[30px]
-              overflow-hidden
-              shadow-sm
-              "
-            >
-
-              {/* IMAGE */}
-
-              <img
-                src={item.img}
-                alt={item.nama}
+              <div
+                key={item.id}
                 className="
-                w-full
-                h-[240px]
-                object-cover
+                bg-white
+                rounded-[30px]
+                overflow-hidden
+                shadow-sm
                 "
-              />
+              >
 
-              {/* CONTENT */}
+                {/* IMAGE */}
 
-              <div className="p-5">
+                <div className="relative">
 
-                {/* NAMA */}
+                  <img
+                    src={item.img}
+                    alt={item.nama}
+                    className={`
+                    w-full
+                    h-[240px]
+                    object-cover
 
-                <h1
-                  className="
-                  text-[28px]
-                  leading-tight
-                  font-black
-                  text-[#002366]
-                  "
-                >
+                    ${
+                      item.stok === "kosong"
+                        ? "grayscale opacity-60"
+                        : ""
+                    }
+                    `}
+                  />
 
-                  {item.nama}
+                  {
+                  item.stok === "kosong" && (
 
-                </h1>
+                    <div
+                      className="
+                      absolute
+                      inset-0
+                      flex
+                      items-center
+                      justify-center
+                      "
+                    >
 
-                {/* DESKRIPSI */}
+                      <div
+                        className="
+                        bg-black/55
+                        backdrop-blur-sm
 
-                <p
-                  className="
-                  text-gray-500
-                  mt-2
-                  text-sm
-                  leading-relaxed
-                  "
-                >
+                        text-white
+                        font-bold
+                        uppercase
 
-                  {item.deskripsi}
+                        px-6
+                        py-3
 
-                </p>
+                        rounded-full
 
-                {/* HARGA */}
+                        tracking-wide
+                        text-sm
+                        md:text-base
 
-                <h2
-                  className="
-                  text-[#FF8C00]
-                  text-[30px]
-                  font-black
-                  mt-5
-                  "
-                >
+                        shadow-lg
+                        "
+                      >
 
-                  Rp{" "}
+                        Menu Habis
 
-                  {Number(
-                    item.harga
-                  ).toLocaleString(
-                    "id-ID"
-                  )}
+                      </div>
 
-                </h2>
+                    </div>
 
-                {/* =====================================================
-                   BELUM ADA DI KERANJANG
-                ===================================================== */}
+                  )
+                }
 
-                {!existingItem ? (
+                </div>
 
-                  <button
-                    onClick={() =>
-                      tambahPesanan(
-                        item
+                {/* CONTENT */}
+
+                <div className="p-5">
+
+                  {/* NAMA */}
+
+                  <h1
+                    className="
+                    text-[28px]
+                    leading-tight
+                    font-black
+                    text-[#002366]
+                    "
+                  >
+
+                    {item.nama}
+
+                  </h1>
+
+                  {/* DESKRIPSI */}
+
+                  <p
+                    className="
+                    text-gray-500
+                    mt-2
+                    text-sm
+                    leading-relaxed
+                    "
+                  >
+
+                    {
+                      item.deskripsi
+                    }
+
+                  </p>
+
+                  {/* HARGA */}
+
+                  <h2
+                    className="
+                    text-[#FF8C00]
+                    text-[30px]
+                    font-black
+                    mt-5
+                    "
+                  >
+
+                    Rp{" "}
+
+                    {
+                      Number(
+                        item.harga
+                      ).toLocaleString(
+                        "id-ID"
                       )
                     }
-                    className="
-                    w-full
-                    bg-[#002366]
-                    hover:bg-blue-950
-                    text-white
-                    py-4
-                    rounded-[20px]
-                    font-black
-                    text-lg
-                    mt-5
-                    transition-all
-                    "
-                  >
 
-                    Tambah Pesanan
+                  </h2>
 
-                  </button>
+                  {/* ACTION */}
 
-                ) : (
+                  {
+                    item.stok === "kosong" ? (
 
-                  /* =====================================================
-                     SUDAH ADA DI KERANJANG
-                  ===================================================== */
+                      <button
+                        disabled
+                        className="
+                        w-full
+                        bg-gray-300
+                        text-gray-500
+                        py-4
+                        rounded-[20px]
+                        font-black
+                        text-lg
+                        mt-5
+                        cursor-not-allowed
+                        "
+                      >
 
-                  <div
-                    className="
-                    flex
-                    items-center
-                    justify-between
-                    mt-5
-                    "
-                  >
+                        Menu Habis
 
-                    {/* MINUS */}
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        kurangQty(
-                          existingItem
-                        )
-                      }
-                      className="
-                      w-[58px]
-                      h-[58px]
-                      rounded-[18px]
-                      bg-[#E5E7EB]
-                      text-[#002366]
-                      text-4xl
-                      font-black
-                      "
-                    >
+                    ) : !existingItem ? (
 
-                      -
+                      <button
+                        onClick={() =>
+                          tambahPesanan(
+                            item
+                          )
+                        }
+                        className="
+                        w-full
+                        bg-[#002366]
+                        hover:bg-blue-950
+                        text-white
+                        py-4
+                        rounded-[20px]
+                        font-black
+                        text-lg
+                        mt-5
+                        transition-all
+                        "
+                      >
 
-                    </button>
+                        Tambah Pesanan
 
-                    {/* QTY */}
+                      </button>
 
-                    <h1
-                      className="
-                      text-4xl
-                      font-black
-                      text-[#002366]
-                      "
-                    >
+                    ) : (
 
-                      {existingItem.qty}
+                      <div
+                        className="
+                        flex
+                        items-center
+                        justify-between
+                        mt-5
+                        "
+                      >
 
-                    </h1>
+                        {/* MINUS */}
 
-                    {/* PLUS */}
+                        <button
+                          onClick={() =>
+                            kurangQty(
+                              existingItem
+                            )
+                          }
+                          className="
+                          w-[58px]
+                          h-[58px]
+                          rounded-[18px]
+                          bg-[#E5E7EB]
+                          text-[#002366]
+                          text-4xl
+                          font-black
+                          "
+                        >
 
-                    <button
-                      onClick={() =>
-                        tambahQty(
-                          existingItem
-                        )
-                      }
-                      className="
-                      w-[58px]
-                      h-[58px]
-                      rounded-[18px]
-                      bg-[#002366]
-                      text-white
-                      text-4xl
-                      font-black
-                      "
-                    >
+                          -
 
-                      +
+                        </button>
 
-                    </button>
+                        {/* QTY */}
 
-                  </div>
+                        <h1
+                          className="
+                          text-4xl
+                          font-black
+                          text-[#002366]
+                          "
+                        >
 
-                )}
+                          {
+                            existingItem.qty
+                          }
+
+                        </h1>
+
+                        {/* PLUS */}
+
+                        <button
+                          onClick={() =>
+                            tambahQty(
+                              existingItem
+                            )
+                          }
+                          className="
+                          w-[58px]
+                          h-[58px]
+                          rounded-[18px]
+                          bg-[#002366]
+                          text-white
+                          text-4xl
+                          font-black
+                          "
+                        >
+
+                          +
+
+                        </button>
+
+                      </div>
+
+                    )
+                  }
+
+                </div>
 
               </div>
 
-            </div>
+            );
 
-          );
-
-        })}
+          })
+        }
 
       </div>
 
-      {/* =====================================================
-         FLOATING BUTTON
-      ===================================================== */}
+      {/* FLOATING BUTTON */}
 
       {
         keranjang.length > 0 && (
@@ -642,11 +1031,8 @@ export default function DaftarMenuPembeli() {
               items-center
               gap-4
               transition-all
-              duration-300
               "
             >
-
-              {/* ICON */}
 
               <div
                 className="
@@ -665,8 +1051,6 @@ export default function DaftarMenuPembeli() {
 
               </div>
 
-              {/* TEXT */}
-
               <div className="text-left">
 
                 <h2 className="font-black text-xl">
@@ -677,7 +1061,10 @@ export default function DaftarMenuPembeli() {
 
                 <p className="text-sm text-white/80">
 
-                  {totalItem} menu dipilih
+                  {
+                    totalItem
+                  }{" "}
+                  menu dipilih
 
                 </p>
 

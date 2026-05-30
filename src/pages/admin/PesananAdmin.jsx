@@ -18,6 +18,9 @@ const PesananAdmin = ({
 
   const [meja, setMeja] = useState('');
   const [payMethod, setPayMethod] = useState('Tunai');
+
+  const [namaPemesan, setNamaPemesan] =
+    useState('');
   const [loading, setLoading] = useState(false);
 
   // POPUP MEJA
@@ -40,33 +43,158 @@ const PesananAdmin = ({
 
   const fetchUsedTables = async () => {
 
-    try {
+  try {
+    const { data, error } =
+      await supabase
+        .from('pesanan')
+        .select('meja_id, status')
+        .in(
+          'status',
+          [
+            'menunggu_pembayaran',
+            'diproses'
+          ]
+        );
 
-      const { data } = await supabase
-        .from('history_pesanan')
-        .select('nomor_meja')
-        .eq('status', 'Diproses');
-
-      const mejaDipakai =
-        data?.map((item) =>
-          Number(item.nomor_meja)
-        ) || [];
-
-      setUsedTables(mejaDipakai);
-
-    } catch (error) {
+    if (error) {
 
       console.log(error);
 
+      return;
+
     }
 
-  };
+    const mejaDipakai =
+      data?.map((item) =>
+        Number(item.meja_id)
+      ) || [];
+
+    setUsedTables(mejaDipakai);
+
+  } catch (error) {
+
+    console.log(error);
+
+  }
+
+};
 
   useEffect(() => {
 
     fetchUsedTables();
 
   }, []);
+
+  // =========================
+// VALIDASI MENU REALTIME
+// =========================
+
+useEffect(() => {
+
+  if (!menu.length) return;
+
+  cartItems.forEach((id) => {
+
+    const currentMenu =
+      menu.find(
+        (item) =>
+          Number(item.id) ===
+          Number(id)
+      );
+
+    // MENU DIHAPUS
+    if (!currentMenu) {
+
+      updateQty(
+        Number(id),
+        -999
+      );
+
+      toast.error(
+        "Menu dihapus dari sistem"
+      );
+
+      return;
+
+    }
+
+    // MENU HABIS
+    if (
+      currentMenu.stok ===
+      "kosong"
+    ) {
+
+      updateQty(
+        Number(id),
+        -999
+      );
+
+      toast.error(
+        `${currentMenu.nama} sedang habis`
+      );
+
+      return;
+
+    }
+
+    // MENU NONAKTIF
+    if (
+      currentMenu.stok ===
+      "nonaktif"
+    ) {
+
+      updateQty(
+        Number(id),
+        -999
+      );
+
+      toast.error(
+        `${currentMenu.nama} dinonaktifkan`
+      );
+
+      return;
+
+    }
+
+  });
+
+}, [menu]);
+
+// =========================
+// REALTIME MENU
+// =========================
+
+useEffect(() => {
+
+  const channel =
+    supabase
+      .channel(
+        "realtime-menu-admin"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "menu"
+        },
+        () => {
+
+          window.location.reload();
+
+        }
+      )
+      .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    );
+
+  };
+
+}, []);
 
   // =========================
   // CART ITEMS
@@ -77,6 +205,36 @@ const PesananAdmin = ({
       (id) => cart[id] > 0
     );
 
+    // =========================
+// VALIDASI CART KOSONG
+// =========================
+
+useEffect(() => {
+
+  // TUNGGU RENDER SELESAI
+  const timeout =
+    setTimeout(() => {
+
+      if (
+        cartItems.length === 0
+      ) {
+
+        toast.error(
+          "Pilih menu terlebih dahulu"
+        );
+
+        navigate(
+          "/admin/buat-pesanan"
+        );
+
+      }
+
+    }, 100);
+
+  return () =>
+    clearTimeout(timeout);
+
+}, [cartItems, navigate]);
   // =========================
   // TOTAL HARGA
   // =========================
@@ -121,12 +279,13 @@ const PesananAdmin = ({
   const handleProsesPesanan = async () => {
 
     if (
+      !namaPemesan ||
       !meja ||
       cartItems.length === 0
     ) {
 
       toast.error(
-        'Pilih meja dan menu terlebih dahulu!'
+        'Lengkapi nama dan meja terlebih dahulu!'
       );
 
       return;
@@ -178,19 +337,34 @@ const PesananAdmin = ({
 
       const { error } =
         await supabase
-          .from('history_pesanan')
+          .from('pesanan')
           .insert([
             {
+
               kode_pesanan:
                 generateKodePesanan(),
-              nomor_meja:
+
+              meja_id:
                 Number(meja),
+
               total_harga:
                 Number(totalHarga),
+
               metode_pembayaran:
                 payMethod,
-              status: 'Diproses',
-              items: itemsData
+
+              status:
+                'diproses',
+
+              is_checkout:
+                true,
+
+              nama_pembeli:
+                namaPemesan,
+
+              items:
+                itemsData
+
             }
           ]);
 
@@ -395,6 +569,55 @@ const PesananAdmin = ({
               </h3>
 
               <div className="space-y-6">
+                {/* NAMA PEMESAN */}
+
+                <div>
+
+                  <label
+                    className="
+                    text-[10px]
+                    font-black
+                    text-gray-400
+                    uppercase
+                    tracking-widest
+                    mb-2
+                    block
+                    "
+                  >
+
+                    Nama Pemesan
+
+                  </label>
+
+                  <input
+                    type="text"
+
+                    value={namaPemesan}
+
+                    onChange={(e) =>
+                      setNamaPemesan(
+                        e.target.value
+                      )
+                    }
+
+                    placeholder="Masukkan nama pemesan"
+
+                    className="
+                    w-full
+                    p-4
+                    bg-gray-50
+                    border-2
+                    border-gray-100
+                    rounded-2xl
+                    font-bold
+                    text-[#002366]
+                    outline-none
+                    focus:border-[#FF8C00]
+                    transition-all
+                    "
+                  />
+
+                </div>
 
                 {/* PILIH MEJA */}
                 <div>
@@ -531,171 +754,325 @@ const PesananAdmin = ({
 
       </div>
 
-      {/* POPUP MEJA */}
-      {showMejaPopup && (
+{/* POPUP MEJA */}
 
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+{showMejaPopup && (
 
-          <div className="bg-white w-full max-w-5xl rounded-[35px] p-8 shadow-2xl">
+  <div
+    className="
+    fixed
+    inset-0
+    z-[999]
+    bg-black/50
+    backdrop-blur-sm
+    flex
+    items-center
+    justify-center
+    p-4
+    "
+  >
 
-            {/* HEADER */}
-            <div className="flex items-center justify-between mb-8">
+    {/* CARD */}
 
-              <div>
+    <div
+      className="
+      bg-white
+      w-full
+      max-w-[650px]
+      rounded-[38px]
+      p-6
+      shadow-2xl
+      animate-[fadeIn_.2s_ease]
+      "
+    >
 
-                <h2 className="text-3xl font-black text-[#002366]">
+      {/* HEADER */}
 
-                  Pilih <span className="text-[#FF8C00]">Meja</span>
+      <div
+        className="
+        flex
+        items-center
+        justify-between
+        mb-6
+        "
+      >
 
-                </h2>
+        <h1
+          className="
+          text-3xl
+          font-black
+          text-[#002366]
+          "
+        >
 
-                <p className="text-gray-400 mt-1">
+          Pilih Meja
 
-                  Abu terang = dipakai
+        </h1>
 
-                </p>
+        {/* CLOSE */}
 
-              </div>
+        <button
+          onClick={() =>
+            setShowMejaPopup(false)
+          }
+          className="
+          w-[45px]
+          h-[45px]
+          rounded-2xl
+          bg-red-500
+          hover:bg-red-600
+          text-white
+          text-2xl
+          font-black
+          transition-all
+          "
+        >
+
+          ×
+
+        </button>
+
+      </div>
+
+      {/* GRID */}
+
+      <div
+        className="
+        grid
+        grid-cols-5
+        gap-4
+        "
+      >
+
+        {Array.from(
+          { length: 10 },
+          (_, i) => {
+
+            const nomor =
+              (currentPage - 1) * 10 +
+              i +
+              1;
+
+            const isUsed =
+              usedTables.includes(
+                nomor
+              );
+
+            const selected =
+              meja === nomor;
+
+            return (
 
               <button
-                onClick={() =>
-                  setShowMejaPopup(false)
-                }
-                className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 font-black text-xl"
-              >
+                key={nomor}
 
-                ✕
+                onClick={() => {
 
-              </button>
+                  // VALIDASI MEJA DIPAKAI
+                  if (isUsed) {
 
-            </div>
+                    toast.error(
+                      `Meja ${nomor} sedang digunakan`
+                    );
 
-            {/* GRID MEJA */}
-            <div className="grid grid-cols-5 gap-4">
+                    return;
 
-              {Array.from(
-                { length: 20 },
-                (_, i) => {
+                  }
 
-                  const nomor =
-                    (currentPage - 1) * 20 +
-                    i +
-                    1;
+                  // PILIH MEJA
+                  setMeja(nomor);
 
-                  const isUsed =
-                    usedTables.includes(nomor);
+                }}
 
-                  return (
-
-                    <button
-                      key={nomor}
-
-                      onClick={() => {
-
-                        // JIKA MEJA DIPAKAI
-                        if (isUsed) {
-
-                          toast.error(
-                            `Meja ${nomor} sedang digunakan`
-                          );
-
-                          return;
-
-                        }
-
-                        // PILIH MEJA
-                        setMeja(nomor);
-
-                        // TUTUP POPUP
-                        setShowMejaPopup(false);
-
-                      }}
-
-                      className={`aspect-square rounded-2xl font-black text-xl transition-all duration-300 shadow-md border-2
-
-                      ${
-                        meja === nomor
-
-                          ? 'bg-[#FF8C00] text-white border-[#FF8C00] scale-105 shadow-orange-200'
-
-                          : isUsed
-
-                          ? 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed'
-
-                          : 'bg-gray-700 hover:bg-[#FF8C00] text-white border-gray-700 hover:border-[#FF8C00] hover:scale-105'
-                      }`}
-                    >
-
-                      {nomor}
-
-                    </button>
-
-                  );
-
-                }
-              )}
-
-            </div>
-
-            {/* PAGINATION */}
-            <div className="flex items-center justify-between mt-8">
-
-              <button
                 disabled={
-                  currentPage === 1
+                  isUsed
                 }
-                onClick={() =>
-                  setCurrentPage(
-                    currentPage - 1
-                  )
+
+                className={`
+                h-[74px]
+                rounded-[20px]
+                font-black
+                text-2xl
+                transition-all
+                duration-300
+
+                ${
+                  selected
+
+                    ? "bg-[#FF8C00] text-white scale-105"
+
+                    : isUsed
+
+                    ? "bg-gray-300 text-white cursor-not-allowed"
+
+                    : "bg-[#56657F] hover:bg-[#002366] text-white"
                 }
-                className={`px-6 py-3 rounded-2xl font-bold ${
-                  currentPage === 1
-                    ? 'bg-gray-100 text-gray-300'
-                    : 'bg-[#002366] text-white'
-                }`}
+                `}
               >
 
-                Prev
+                {nomor}
 
               </button>
 
-              <div className="font-black text-[#002366] text-lg">
+            );
 
-                Halaman {currentPage}
+          }
+        )}
 
-              </div>
+      </div>
 
-              <button
-                disabled={
-                  currentPage ===
-                  maxPage
-                }
-                onClick={() =>
-                  setCurrentPage(
-                    currentPage + 1
-                  )
-                }
-                className={`px-6 py-3 rounded-2xl font-bold ${
-                  currentPage ===
-                  maxPage
-                    ? 'bg-gray-100 text-gray-300'
-                    : 'bg-[#FF8C00] text-white'
-                }`}
-              >
+      {/* PAGINATION */}
 
-                Next
+      <div
+        className="
+        flex
+        items-center
+        justify-between
+        mt-6
+        "
+      >
 
-              </button>
+        {/* PREVIOUS */}
 
-            </div>
+        <button
+          disabled={
+            currentPage === 1
+          }
 
-          </div>
+          onClick={() =>
+            setCurrentPage(
+              (prev) =>
+                prev - 1
+            )
+          }
 
-        </div>
+          className={`
+          px-6
+          h-[50px]
+          rounded-2xl
+          font-bold
+          transition-all
 
-      )}
+          ${
+            currentPage === 1
 
+              ? "bg-gray-100 text-gray-300"
+
+              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+          }
+          `}
+        >
+
+          Sebelumnya
+
+        </button>
+
+        {/* INFO */}
+
+        <p
+          className="
+          font-black
+          text-[#002366]
+          text-lg
+          "
+        >
+
+          {(
+            (currentPage - 1) * 10
+          ) + 1}
+
+          {" - "}
+
+          {currentPage * 10}
+
+        </p>
+
+        {/* NEXT */}
+
+        <button
+          disabled={
+            currentPage ===
+            maxPage
+          }
+
+          onClick={() =>
+            setCurrentPage(
+              (prev) =>
+                prev + 1
+            )
+          }
+
+          className={`
+          px-6
+          h-[50px]
+          rounded-2xl
+          font-bold
+          transition-all
+
+          ${
+            currentPage ===
+            maxPage
+
+              ? "bg-gray-100 text-gray-300"
+
+              : "bg-[#FF8C00] hover:bg-orange-600 text-white"
+          }
+          `}
+        >
+
+          Berikutnya
+
+        </button>
+
+      </div>
+
+      {/* BUTTON */}
+
+      <button
+        onClick={() => {
+
+          if (!meja) {
+
+            toast.error(
+              "Pilih meja terlebih dahulu"
+            );
+
+            return;
+
+          }
+
+          setShowMejaPopup(false);
+
+        }}
+
+        disabled={!meja}
+
+        className="
+        w-full
+        mt-6
+        bg-[#8A9BC0]
+        hover:bg-[#6F84B3]
+        disabled:bg-[#B8C2D9]
+        text-white
+        py-4
+        rounded-[20px]
+        font-black
+        text-xl
+        transition-all
+        "
+      >
+
+        Gunakan Meja
+
+        {meja && ` ${meja}`}
+
+      </button>
+
+    </div>
+
+  </div>
+
+)}
     </div>
 
   );
