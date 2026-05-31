@@ -27,28 +27,6 @@ const LayoutPembeli = () => {
       <HeaderPembeli />
 
       {/* ========================= */}
-      {/* MODE PEMBELI */}
-      {/* ========================= */}
-
-      <div
-        className="
-        w-full
-        bg-[#FF8C00]
-        text-white
-        text-xs
-        text-center
-        py-2
-        font-semibold
-        tracking-wider
-        shadow-sm
-        "
-      >
-
-        MODE PEMBELI
-
-      </div>
-
-      {/* ========================= */}
       {/* CONTENT */}
       {/* ========================= */}
 

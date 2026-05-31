@@ -35,6 +35,7 @@ const KonfirmasiPesananPembeli = () => {
 
   const [email, setEmail] =
     useState("");
+    
 
   const [
     metodePembayaran,
@@ -60,6 +61,58 @@ const KonfirmasiPesananPembeli = () => {
     mejaDipakai,
     setMejaDipakai
   ] = useState([]);
+
+  const loadGuestData =
+  async () => {
+
+    try {
+
+      const token =
+        localStorage.getItem(
+          "guestToken"
+        );
+
+      if (!token) return;
+
+      const {
+        data: guest,
+        error
+      } = await supabase
+        .from(
+          "guest_customer"
+        )
+        .select(
+          "nama_pembeli,email"
+        )
+        .eq(
+          "access_token",
+          token
+        )
+        .single();
+
+      if (
+        error ||
+        !guest
+      ) return;
+
+      setNamaPembeli(
+        guest.nama_pembeli || ""
+      );
+
+      setEmail(
+        guest.email || ""
+      );
+
+    } catch (err) {
+
+      console.log(
+        "LOAD GUEST ERROR:",
+        err
+      );
+
+    }
+
+  };
 
   /* =====================================================
      AMBIL DATA KERANJANG
@@ -317,6 +370,13 @@ const KonfirmasiPesananPembeli = () => {
 
     };
 
+  
+useEffect(() => {
+
+  loadGuestData();
+
+}, []);
+
   /* =====================================================
      KONFIRMASI PESANAN
   ===================================================== */
@@ -389,8 +449,6 @@ const KonfirmasiPesananPembeli = () => {
 
     }
 
-    setLoading(true);
-
     /* =========================================
        VALIDASI MEJA REALTIME
     ========================================= */
@@ -449,6 +507,41 @@ const KonfirmasiPesananPembeli = () => {
     const kodePesanan =
       "ORD-" + Date.now();
 
+      /* =========================================
+   VALIDASI STATUS KIOS
+========================================= */
+
+const {
+  data: kiosData,
+  error: kiosError
+} = await supabase
+  .from("pengaturan_kios")
+  .select("buka")
+  .eq("id", 1)
+  .single();
+
+if (kiosError) {
+
+  console.log(kiosError);
+
+  toast.error(
+    "Gagal memeriksa status kios"
+  );
+
+  return;
+
+}
+
+if (!kiosData?.buka) {
+
+  toast.error(
+    "Kios sedang tutup"
+  );
+
+  return;
+
+}
+
 /* =========================================
    NORMALISASI ITEMS
 ========================================= */
@@ -465,23 +558,125 @@ const normalizedItems =
 
   }));
 
+
+  /* =========================================
+   CARI / BUAT GUEST CUSTOMER
+========================================= */
+
+let guestCustomer = null;
+
+const cleanedEmail =
+  email.trim().toLowerCase();
+
+const {
+  data: existingGuest,
+  error: guestError
+} = await supabase
+  .from("guest_customer")
+  .select("*")
+  .eq("email", cleanedEmail)
+  .maybeSingle();
+
+if (guestError) {
+
+  console.log(guestError);
+
+  toast.error(
+    "Gagal memeriksa data pelanggan"
+  );
+
+  return;
+}
+
+if (existingGuest) {
+
+  guestCustomer = existingGuest;
+
+  await supabase
+    .from("guest_customer")
+    .update({
+      nama_pembeli:
+        namaPembeli.trim(),
+
+      last_order_at:
+        new Date().toISOString()
+    })
+    .eq(
+      "id",
+      existingGuest.id
+    );
+
+} else {
+
+  const accessToken =
+    crypto.randomUUID();
+
+  const {
+    data: newGuest,
+    error: createGuestError
+  } = await supabase
+    .from("guest_customer")
+    .insert({
+      email:
+        cleanedEmail,
+
+      nama_pembeli:
+        namaPembeli.trim(),
+
+      access_token:
+        accessToken
+    })
+    .select()
+    .single();
+
+  if (
+    createGuestError
+  ) {
+
+    console.log(
+      createGuestError
+    );
+
+    toast.error(
+      "Gagal membuat akun pelanggan"
+    );
+
+    return;
+  }
+
+  guestCustomer =
+    newGuest;
+}
+
+/* =========================================
+   SIMPAN TOKEN KE BROWSER
+========================================= */
+
+localStorage.setItem(
+  "guestToken",
+  guestCustomer.access_token
+);
+
     /* =========================================
        INSERT PESANAN
     ========================================= */
 
     const payload = {
 
-    kode_pesanan:
-      kodePesanan,
+  guest_customer_id:
+    guestCustomer.id,
 
-    nama_pembeli:
-      namaPembeli.trim(),
+  kode_pesanan:
+    kodePesanan,
 
-    email:
-      email.trim(),
+  nama_pembeli:
+    namaPembeli.trim(),
 
-    meja_id:
-      mejaData.id,
+  email:
+    cleanedEmail,
+
+  meja_id:
+    mejaData.id,
 
     metode_pembayaran:
       metodePembayaran,
@@ -543,50 +738,6 @@ const normalizedItems =
       );
 
     }
-
-    /* =========================================
-       KIRIM EMAIL
-    ========================================= */
-
-    const {
-  data: emailData,
-  error: emailError
-} = await supabase
-  .functions
-  .invoke(
-    "send-order-email",
-    {
-      body: {
-
-        email,
-
-        nama_pembeli:
-          namaPembeli,
-
-        kode_pesanan:
-          kodePesanan,
-
-        nomor_meja:
-          selectedMeja,
-
-        total_harga:
-          totalHarga,
-
-        items: cart
-
-      }
-    }
-  );
-
-console.log(
-  "EMAIL DATA:",
-  emailData
-);
-
-console.log(
-  "EMAIL ERROR:",
-  emailError
-);
 
     /* =========================================
        HAPUS STORAGE

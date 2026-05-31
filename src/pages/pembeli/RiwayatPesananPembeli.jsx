@@ -3,7 +3,10 @@ import React, {
   useState
 } from "react";
 
-import { useNavigate } from "react-router-dom";
+import {
+  useNavigate,
+  useSearchParams
+} from "react-router-dom";
 
 import { supabase } from "../../lib/supabaseClient";
 
@@ -13,6 +16,12 @@ from "react-hot-toast";
 const RiwayatPesananPembeli = () => {
 
   const navigate = useNavigate();
+
+  const [searchParams] =
+  useSearchParams();
+
+const tokenFromUrl =
+  searchParams.get("token");
 
   // =========================
   // STATE
@@ -37,27 +46,78 @@ const RiwayatPesananPembeli = () => {
 
       setLoading(true);
 
+      let token =
+      tokenFromUrl ||
+      localStorage.getItem(
+        "guestToken"
+      );
+
+    if (!token) {
+
+      setRiwayat([]);
+
+      setLoading(false);
+
+      return;
+    }
+
+    if (tokenFromUrl) {
+
+      localStorage.setItem(
+        "guestToken",
+        tokenFromUrl
+      );
+    }
+
       const {
-        data,
-        error
-      } = await supabase
-        .from("pesanan")
-        .select(`
-          *,
-          meja (
-            nomor_meja
-          )
-        `)
-        .in("status", [
-          "selesai",
-          "dibatalkan"
-        ])
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        );
+  data: guest,
+  error: guestError
+} = await supabase
+  .from("guest_customer")
+  .select("id")
+  .eq(
+    "access_token",
+    token
+  )
+  .single();
+
+if (
+  guestError ||
+  !guest
+) {
+
+  setRiwayat([]);
+
+  setLoading(false);
+
+  return;
+}
+
+const {
+  data,
+  error
+} = await supabase
+  .from("pesanan")
+  .select(`
+    *,
+    meja (
+      nomor_meja
+    )
+  `)
+  .eq(
+    "guest_customer_id",
+    guest.id
+  )
+  .in("status", [
+    "selesai",
+    "dibatalkan"
+  ])
+  .order(
+    "created_at",
+    {
+      ascending: false
+    }
+  );
 
       if (error) throw error;
 
@@ -124,11 +184,11 @@ const handlePesanLagi = (pesanan) => {
 
 };
 
-  useEffect(() => {
+useEffect(() => {
 
-    fetchRiwayat();
+  fetchRiwayat();
 
-  }, []);
+}, [tokenFromUrl]);
 
   useEffect(() => {
 
@@ -319,13 +379,11 @@ const handlePesanLagi = (pesanan) => {
                   className={`px-6 py-3 rounded-2xl font-black text-lg
 
                   ${
-                    item.status ===
-                    "Selesai"
+                    item.status === "selesai"
 
                       ? "bg-green-500 text-white"
 
-                    : item.status ===
-                      "Dibatalkan"
+                    : item.status === "dibatalkan"
 
                       ? "bg-red-500 text-white"
 
@@ -335,9 +393,64 @@ const handlePesanLagi = (pesanan) => {
                   `}
                 >
 
-                  {item.status}
+                  {
+                    item.status === "selesai"
+                      ? "Selesai"
+
+                    : item.status === "dibatalkan"
+                      ? "Dibatalkan"
+
+                    : item.status === "diproses"
+                      ? "Diproses"
+
+                    : "Menunggu Pembayaran"
+                  }
 
                 </div>
+
+                {
+                  item.status === "dibatalkan" &&
+                  item.alasan_pembatalan && (
+
+                    <div
+                      className="
+                      mt-4
+                      bg-red-50
+                      border
+                      border-red-200
+                      rounded-2xl
+                      p-4
+                      "
+                    >
+
+                      <p
+                        className="
+                        text-sm
+                        font-bold
+                        text-red-600
+                        mb-1
+                        "
+                      >
+
+                        Keterangan Pembatalan
+
+                      </p>
+
+                      <p
+                        className="
+                        text-red-800
+                        font-semibold
+                        "
+                      >
+
+                        {item.alasan_pembatalan}
+
+                      </p>
+
+                    </div>
+
+                  )
+                }
 
               </div>
 

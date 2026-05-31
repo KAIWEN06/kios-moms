@@ -33,6 +33,9 @@ const KeranjangPembeli = () => {
   const [loading, setLoading] =
     useState(true);
 
+  const [kiosBuka, setKiosBuka] =
+  useState(true);
+
   /* =====================================================
      LOAD AWAL
   ===================================================== */
@@ -42,6 +45,8 @@ const KeranjangPembeli = () => {
     fetchMenu();
 
     fetchKeranjang();
+
+    fetchStatusKios();
 
   }, []);
 
@@ -80,6 +85,67 @@ const KeranjangPembeli = () => {
     };
 
   }, []);
+
+  const fetchStatusKios =
+  async () => {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase
+        .from("pengaturan_kios")
+        .select("buka")
+        .eq("id", 1)
+        .single();
+
+      if (error)
+        throw error;
+
+      setKiosBuka(
+        data?.buka ?? true
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
+  };
+
+  useEffect(() => {
+
+  const channel =
+    supabase
+      .channel(
+        "realtime-status-kios"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pengaturan_kios"
+        },
+        () => {
+
+          fetchStatusKios();
+
+        }
+      )
+      .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    );
+
+  };
+
+}, []);
 
   /* =====================================================
      FETCH MENU
@@ -445,6 +511,16 @@ const KeranjangPembeli = () => {
   const handleLanjut =
     () => {
 
+      if (!kiosBuka) {
+
+        toast.error(
+          "Kios sedang tutup"
+        );
+
+        return;
+
+      }
+
       if (
         keranjang.length === 0
       ) {
@@ -590,6 +666,7 @@ const KeranjangPembeli = () => {
             Daftar menu yang dipilih pelanggan.
 
           </p>
+          
 
         </div>
 
@@ -618,8 +695,33 @@ const KeranjangPembeli = () => {
 
       {/* EMPTY */}
 
+                  {
+        !kiosBuka && (
+
+          <div
+            className="
+            bg-red-100
+            border
+            border-red-300
+            text-red-700
+            p-4
+            rounded-2xl
+            mb-5
+            font-bold
+            "
+          >
+
+            Kios sedang tutup.
+            Pemesanan sementara tidak tersedia.
+
+          </div>
+
+        )
+      }
+
       {
         keranjang.length === 0 && (
+          
 
           <div
             className="
@@ -655,7 +757,6 @@ const KeranjangPembeli = () => {
       }
 
       {/* LIST */}
-
       <div className="space-y-5">
 
         {
@@ -920,24 +1021,32 @@ const KeranjangPembeli = () => {
 
             </div>
 
-            <button
-              onClick={
-                handleLanjut
-              }
-              className="
-              w-full
-              bg-[#FF8C00]
-              hover:bg-orange-600
-              text-white
-              py-4
-              rounded-2xl
-              font-black
-              "
-            >
+              <button
+  disabled={!kiosBuka}
+  onClick={handleLanjut}
+  className={`
+    w-full
+    py-4
+    rounded-2xl
+    font-black
+    text-white
+    transition-all
 
-              Lanjut Konfirmasi
+    ${
+      kiosBuka
+        ? "bg-[#FF8C00] hover:bg-orange-600"
+        : "bg-gray-400 cursor-not-allowed"
+    }
+  `}
+>
 
-            </button>
+  {
+    kiosBuka
+      ? "Lanjut Konfirmasi"
+      : "Kios Sedang Tutup"
+  }
+
+</button>
 
           </div>
 

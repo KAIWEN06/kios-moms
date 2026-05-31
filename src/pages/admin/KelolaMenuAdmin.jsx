@@ -191,6 +191,7 @@ const KelolaMenuAdmin = ({
   // EDIT MENU
   // =========================
 
+
   const saveEdit = async (
     menuId
   ) => {
@@ -356,6 +357,22 @@ const KelolaMenuAdmin = ({
 
   };
 
+  const [selectedFile, setSelectedFile] = useState(null);
+  const handleRemoveFile = () => {
+  setSelectedFile(null);
+
+  const fileInput =
+    document.getElementById("upload-file");
+
+  if (fileInput) {
+    fileInput.value = "";
+  }
+
+  setFormData((prev) => ({
+    ...prev,
+    gambar: null,
+  }));
+};
   // =========================
   // FILTER MENU
   // =========================
@@ -451,11 +468,52 @@ const KelolaMenuAdmin = ({
             <input
               id="upload-file"
               type="file"
-              onChange={
-                handleFileChange
-              }
-              className="w-full p-3 border-2 border-dashed rounded-xl text-xs"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+
+                if (!file) return;
+
+                setSelectedFile(file);
+
+                handleFileChange(e);
+              }}
+              className="hidden"
             />
+
+            <div className="border-2 border-dashed rounded-xl p-3">
+
+              <div className="flex items-center justify-between gap-2">
+
+                <span className="text-sm truncate">
+                  {selectedFile
+                    ? selectedFile.name
+                    : "Belum ada foto dipilih"}
+                </span>
+
+                <div className="flex gap-2">
+
+                  <label
+                    htmlFor="upload-file"
+                    className="px-3 py-2 bg-[#002366] text-white rounded-lg text-xs cursor-pointer"
+                  >
+                    Pilih File
+                  </label>
+
+                  {selectedFile && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs"
+                    >
+                      Hapus
+                    </button>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
 
           </div>
 

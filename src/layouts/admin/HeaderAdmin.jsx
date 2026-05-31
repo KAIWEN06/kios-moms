@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+
 import toast from 'react-hot-toast';
+
 import {
   NavLink,
   useNavigate,
@@ -13,101 +15,354 @@ const HeaderAdmin = () => {
 
   const navigate = useNavigate();
 
+  const [openMenu, setOpenMenu] =
+    useState(false);
+
   // =========================
   // LOGOUT
   // =========================
 
   const handleLogout = async () => {
 
-  try {
+    try {
 
-    await supabase.auth.signOut();
+      await supabase.auth.signOut();
 
-    toast.success(
-      'Berhasil logout!'
-    );
+      toast.success(
+        'Berhasil logout!'
+      );
 
-    navigate('/');
+      navigate('/');
 
-  } catch (error) {
+    } catch (error) {
 
-    console.error(error);
+      console.error(error);
 
-    toast.error(
-      'Gagal logout!'
-    );
-  }
-};
+      toast.error(
+        'Gagal logout!'
+      );
+
+    }
+
+  };
 
   // =========================
   // MENU
   // =========================
 
-  const menuItems = [
+  const menu = [
 
     {
-      name: 'Beranda',
+      nama: 'Beranda',
       path: '/admin'
     },
 
     {
-      name: 'Buat Pesanan',
+      nama: 'Buat Pesanan',
       path: '/admin/buat-pesanan'
     },
 
     {
-      name: 'Pesanan',
+      nama: 'Pesanan',
       path: '/admin/pesanan'
     },
 
     {
-      name: 'Proses Pesanan',
+      nama: 'Proses Pesanan',
       path: '/admin/proses-pesanan'
     },
 
     {
-      name: 'Riwayat',
+      nama: 'Riwayat',
       path: '/admin/riwayat-pesanan'
     },
 
     {
-      name: 'Kelola Menu',
+      nama: 'Kelola Menu',
       path: '/admin/kelola-menu'
     },
 
     {
-      name: 'Laporan',
+      nama: 'Laporan',
       path: '/admin/laporan'
-    },
+    }
 
   ];
 
   return (
 
-    <header className="bg-[#002366] text-white py-4 px-5 shadow-md sticky top-0 z-[100]">
+    <>
+      {/* ========================= */}
+      {/* HEADER */}
+      {/* ========================= */}
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+      <header
+        className="
+        bg-[#002366]
+        text-white
+        sticky
+        top-0
+        z-[100]
+        shadow-md
+        "
+      >
 
-        {/* LOGO */}
-        <div className="flex items-center gap-3">
+        <div
+          className="
+          w-full
+          px-4
+          lg:px-10
+          h-24
+          flex
+          items-center
+          justify-between
+          "
+        >
 
-          <div className="w-10 h-10 rounded-full bg-[#FF8C00] flex items-center justify-center font-bold text-lg shadow-lg">
+          {/* ========================= */}
+          {/* LOGO */}
+          {/* ========================= */}
 
-            K
+          <div
+            className="
+            cursor-pointer
+            "
+            onClick={() =>
+              navigate('/admin')
+            }
+          >
 
-          </div>
+            <h1
+              className="
+              text-3xl
+              sm:text-4xl
+              font-black
+              "
+            >
 
-          <div>
+              Kios{' '}
 
-            <h1 className="text-lg font-bold leading-none">
+              <span
+                className="
+                text-[#FF8C00]
+                "
+              >
 
-              Kios Mom's
+                Mom's
+
+              </span>
 
             </h1>
 
-            <p className="text-xs opacity-70">
+            <p
+              className="
+              text-xs
+              sm:text-sm
+              text-white/60
+              "
+            >
 
-              Panel Admin
+              Panel Administrator
+
+            </p>
+
+          </div>
+
+          {/* ========================= */}
+          {/* DESKTOP MENU */}
+          {/* ========================= */}
+
+          <div
+            className="
+            hidden
+            lg:flex
+            items-center
+            gap-8
+            "
+          >
+
+            <ul
+              className="
+              flex
+              items-center
+              gap-8
+              "
+            >
+
+              {
+                menu.map(
+                  (item) => (
+
+                    <li
+                      key={item.path}
+                    >
+
+                      <NavLink
+                        to={item.path}
+                        end={
+                          item.path ===
+                          '/admin'
+                        }
+                        className={({
+                          isActive
+                        }) =>
+                          `
+                          text-[16px]
+                          font-bold
+                          transition-all
+                          duration-300
+
+                          ${
+                            isActive
+                              ? 'text-[#FF8C00]'
+                              : 'text-white hover:text-[#FF8C00]'
+                          }
+                          `
+                        }
+                      >
+
+                        {item.nama}
+
+                      </NavLink>
+
+                    </li>
+
+                  )
+                )
+              }
+
+            </ul>
+
+            <button
+              onClick={
+                handleLogout
+              }
+              className="
+              px-5
+              py-3
+              rounded-2xl
+              bg-red-500
+              hover:bg-red-600
+              text-white
+              font-bold
+              transition-all
+              duration-300
+              "
+            >
+
+              Logout
+
+            </button>
+
+          </div>
+
+          {/* ========================= */}
+          {/* HAMBURGER */}
+          {/* ========================= */}
+
+          <button
+            onClick={() =>
+              setOpenMenu(!openMenu)
+            }
+            className="
+            lg:hidden
+            w-14
+            h-14
+            rounded-2xl
+            bg-[#FF8C00]
+            text-white
+            text-3xl
+            font-black
+            hover:scale-105
+            transition-all
+            duration-300
+            shadow-lg
+            "
+          >
+
+            {openMenu ? '✕' : '☰'}
+
+          </button>
+
+        </div>
+
+      </header>
+
+      {/* ========================= */}
+      {/* SIDEBAR */}
+      {/* ========================= */}
+
+      <div
+        className={`
+
+        fixed
+        top-0
+        left-0
+        h-screen
+        w-[320px]
+        max-w-[85vw]
+        bg-[#002366]
+        shadow-2xl
+        z-[999]
+        transition-all
+        duration-300
+
+        ${
+          openMenu
+            ? 'translate-x-0'
+            : '-translate-x-full'
+        }
+
+        `}
+      >
+
+        {/* ========================= */}
+        {/* SIDEBAR HEADER */}
+        {/* ========================= */}
+
+        <div
+          className="
+          h-24
+          border-b
+          border-white/10
+          flex
+          items-center
+          px-6
+          "
+        >
+
+          <div>
+
+            <h1
+              className="
+              text-3xl
+              font-black
+              text-white
+              "
+            >
+
+              Kios{' '}
+
+              <span
+                className="
+                text-[#FF8C00]
+                "
+              >
+
+                Mom's
+
+              </span>
+
+            </h1>
+
+            <p
+              className="
+              text-sm
+              text-white/50
+              "
+            >
+
+              Panel Administrator
 
             </p>
 
@@ -115,65 +370,117 @@ const HeaderAdmin = () => {
 
         </div>
 
-        {/* MENU */}
-        <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 items-center">
+        {/* ========================= */}
+        {/* MENU MOBILE */}
+        {/* ========================= */}
 
-          {menuItems.map((item) => (
+        <div
+          className="
+          h-[calc(100vh-96px)]
+          overflow-y-auto
+          p-6
+          flex
+          flex-col
+          gap-4
+          "
+        >
 
-            <li key={item.path}>
+          {
+            menu.map(
+              (item) => (
 
-              <NavLink
+                <NavLink
+                  key={item.path}
                   to={item.path}
-                  end={item.path === '/admin'}
-                  className={({ isActive }) =>
-                    `text-[15px] font-medium transition-all duration-300 hover:text-[#FF8C00] ${
+                  end={
+                    item.path ===
+                    '/admin'
+                  }
+                  onClick={() =>
+                    setOpenMenu(false)
+                  }
+                  className={({
+                    isActive
+                  }) =>
+                    `
+                    w-full
+                    text-left
+                    px-6
+                    py-5
+                    rounded-2xl
+                    font-black
+                    text-lg
+                    transition-all
+                    duration-300
+
+                    ${
                       isActive
-                        ? 'text-[#FF8C00] font-bold'
-                        : 'text-white'
-                    }`
+                        ? 'bg-[#FF8C00] text-white'
+                        : 'bg-white/5 text-white hover:bg-[#FF8C00]'
+                    }
+                    `
                   }
                 >
 
-                {item.name}
+                  {item.nama}
 
-              </NavLink>
+                </NavLink>
 
-            </li>
-          ))}
+              )
+            )
+          }
 
-        </ul>
-
-        {/* LOGOUT */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-300 shadow-lg"
-        >
-
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-5 h-5"
+          <button
+            onClick={
+              handleLogout
+            }
+            className="
+            w-full
+            px-6
+            py-5
+            rounded-2xl
+            font-black
+            text-lg
+            bg-red-500
+            hover:bg-red-600
+            transition-all
+            duration-300
+            "
           >
 
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3l-3-3m3 3l-3 3m3-3H9"
-            />
+            Logout
 
-          </svg>
+          </button>
 
-          Logout
-
-        </button>
+        </div>
 
       </div>
 
-    </header>
+      {/* ========================= */}
+      {/* BACKDROP */}
+      {/* ========================= */}
+
+      {
+        openMenu && (
+
+          <div
+            onClick={() =>
+              setOpenMenu(false)
+            }
+            className="
+            fixed
+            inset-0
+            bg-black/50
+            z-[998]
+            "
+          />
+
+        )
+      }
+
+    </>
   );
+
 };
 
 export default HeaderAdmin;

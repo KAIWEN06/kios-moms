@@ -7,11 +7,7 @@ const AdminLayout = ({ children }) => {
     <div className="w-full min-h-screen flex flex-col bg-[#f0f2f5]">
       {/* HEADER: Akan selalu di atas */}
       <AdminHeader />
-      
-      {/* INDIKATOR MODE (Opsional, dari kodingan kamu sebelumnya) */}
-      <div className="w-full bg-[#FF8C00] text-white text-xs text-center py-1 font-semibold tracking-wider">
-        <small>MODE ADMINISTRATOR</small>
-      </div>
+    
 
       {/* KONTEN UTAMA: Akan mengisi sisa ruang tengah layar */}
       <main className="flex-grow w-full">

@@ -10,9 +10,34 @@ export default function BerandaPembeli() {
 
   const navigate = useNavigate();
 
+  const [kiosBuka, setKiosBuka] =
+  useState(true);
+
   const [menuTerlaris, setMenuTerlaris] =
     useState([]);
 
+  
+  const ambilStatusKios =
+  async () => {
+
+    const {
+      data,
+      error
+    } = await supabase
+      .from("pengaturan_kios")
+      .select("buka")
+      .eq("id", 1)
+      .single();
+
+    if (!error && data) {
+
+      setKiosBuka(
+        data.buka
+      );
+
+    }
+
+  };
   /* ======================================================
      LOAD MENU TERLARIS
   ====================================================== */
@@ -20,6 +45,8 @@ export default function BerandaPembeli() {
   useEffect(() => {
 
     getMenuTerlaris();
+
+    ambilStatusKios();
 
   }, []);
 
@@ -39,7 +66,7 @@ useEffect(() => {
         {
           event: "*",
           schema: "public",
-          table: "menu"
+          table: "pesanan"
         },
         async () => {
 
@@ -59,6 +86,41 @@ useEffect(() => {
 
 }, []);
 
+
+useEffect(() => {
+
+  const kiosChannel =
+    supabase
+      .channel(
+        "realtime-kios-beranda"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pengaturan_kios"
+        },
+        (payload) => {
+
+          setKiosBuka(
+            payload.new.buka
+          );
+
+        }
+      )
+      .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      kiosChannel
+    );
+
+  };
+
+}, []);
+
   /* ======================================================
      GET MENU TERLARIS
   ====================================================== */
@@ -72,15 +134,36 @@ useEffect(() => {
          AMBIL SEMUA PESANAN CHECKOUT
       ====================================================== */
 
+     const sekarang = new Date();
+
+      const awalBulan =
+        new Date(
+          sekarang.getFullYear(),
+          sekarang.getMonth(),
+          1
+        ).toISOString();
+
+      const akhirBulan =
+        new Date(
+          sekarang.getFullYear(),
+          sekarang.getMonth() + 1,
+          1
+        ).toISOString();
+
       const {
         data,
         error
       } = await supabase
         .from("pesanan")
         .select("items")
-        .eq(
-          "is_checkout",
-          true
+        .eq("status", "selesai")
+        .gte(
+          "created_at",
+          awalBulan
+        )
+        .lt(
+          "created_at",
+          akhirBulan
         );
 
       if (error) {
@@ -319,25 +402,47 @@ useEffect(() => {
             <div className="flex flex-wrap gap-5 mt-10">
 
               <button
-                onClick={() =>
+                disabled={!kiosBuka}
+                onClick={() => {
+
+                  if (!kiosBuka) {
+
+                    toast.error(
+                      "Kios sedang tutup"
+                    );
+
+                    return;
+
+                  }
+
                   navigate(
                     "/daftar-menu"
-                  )
-                }
-                className="
-                bg-[#FF8C00]
-                hover:bg-orange-600
-                text-white
-                px-10
-                py-5
-                rounded-[22px]
-                font-black
-                text-lg
-                transition-all
-                "
+                  );
+
+                }}
+                className={`
+                  bg-[#FF8C00]
+                  text-white
+                  px-10
+                  py-5
+                  rounded-[22px]
+                  font-black
+                  text-lg
+                  transition-all
+
+                  ${
+                    kiosBuka
+                      ? "hover:bg-orange-600"
+                      : "opacity-60 cursor-not-allowed"
+                  }
+                `}
               >
 
-                Pesan Sekarang
+                {
+                  kiosBuka
+                    ? "Pesan Sekarang"
+                    : "Kios Tutup"
+                }
 
               </button>
 
@@ -534,143 +639,162 @@ useEffect(() => {
                     {/* BUTTON */}
 
                     <button
-  onClick={() => {
+                      disabled={!kiosBuka}
+                      onClick={() => {
 
-    try {
+                        try {
 
-      /* VALIDASI MENU HABIS */
+                          if (!kiosBuka) {
 
-      if (
-        item.stok === "kosong"
-      ) {
+                            toast.error(
+                              "Kios sedang tutup"
+                            );
 
-        toast.error(
-          `${item.nama} sedang habis`
-        );
+                            return;
 
-        navigate(
-          "/daftar-menu"
-        );
+                          }
 
-        return;
+                          /* VALIDASI MENU HABIS */
 
-      }
+                          if (
+                            item.stok === "kosong"
+                          ) {
 
-      const keranjangLama =
-        JSON.parse(
-          localStorage.getItem(
-            "keranjang"
-          )
-        ) || [];
+                            toast.error(
+                              `${item.nama} sedang habis`
+                            );
 
-      const existingItem =
-        keranjangLama.find(
-          (x) =>
-            x.id === item.id
-        );
+                            navigate(
+                              "/daftar-menu"
+                            );
 
-      let updatedKeranjang;
+                            return;
 
-      if (existingItem) {
+                          }
 
-        updatedKeranjang =
-          keranjangLama.map(
-            (x) => {
+                          const keranjangLama =
+                            JSON.parse(
+                              localStorage.getItem(
+                                "keranjang"
+                              )
+                            ) || [];
 
-              if (
-                x.id === item.id
-              ) {
+                          const existingItem =
+                            keranjangLama.find(
+                              (x) =>
+                                x.id === item.id
+                            );
 
-                return {
+                          let updatedKeranjang;
 
-                  ...x,
+                          if (existingItem) {
 
-                  qty:
-                    x.qty + 1
+                            updatedKeranjang =
+                              keranjangLama.map(
+                                (x) => {
 
-                };
+                                  if (
+                                    x.id === item.id
+                                  ) {
 
-              }
+                                    return {
 
-              return x;
+                                      ...x,
 
-            }
-          );
+                                      qty:
+                                        x.qty + 1
 
-      } else {
+                                    };
 
-        updatedKeranjang = [
+                                  }
 
-          ...keranjangLama,
+                                  return x;
 
-          {
+                                }
+                              );
 
-            id: item.id,
+                          } else {
 
-            nama:
-              item.nama,
+                            updatedKeranjang = [
 
-            harga:
-              item.harga,
+                              ...keranjangLama,
 
-            gambar:
-              item.gambar ||
-              item.img,
+                              {
 
-            deskripsi:
-              item.deskripsi,
+                                id: item.id,
 
-            qty: 1
+                                nama:
+                                  item.nama,
 
-          }
+                                harga:
+                                  item.harga,
 
-        ];
+                                gambar:
+                                  item.gambar ||
+                                  item.img,
 
-      }
+                                deskripsi:
+                                  item.deskripsi,
 
-      localStorage.setItem(
-        "keranjang",
-        JSON.stringify(
-          updatedKeranjang
-        )
-      );
+                                qty: 1
 
-      toast.success(
-        `${item.nama} ditambahkan`
-      );
+                              }
 
-      navigate(
-        "/daftar-menu"
-      );
+                            ];
 
-    } catch (error) {
+                          }
 
-      console.log(error);
+                          localStorage.setItem(
+                            "keranjang",
+                            JSON.stringify(
+                              updatedKeranjang
+                            )
+                          );
 
-      toast.error(
-        "Gagal menambahkan menu"
-      );
+                          toast.success(
+                            `${item.nama} ditambahkan`
+                          );
 
-    }
+                          navigate(
+                            "/daftar-menu"
+                          );
 
-  }}
-  className="
-  w-full
-  bg-[#002366]
-  hover:bg-blue-950
-  text-white
-  py-4
-  rounded-[20px]
-  font-black
-  text-lg
-  mt-6
-  transition-all
-  "
->
+                        } catch (error) {
 
-  Pesan
+                          console.log(error);
 
-</button>
+                          toast.error(
+                            "Gagal menambahkan menu"
+                          );
+
+                        }
+
+                      }}
+                      className={`
+                        w-full
+                        text-white
+                        py-4
+                        rounded-[20px]
+                        font-black
+                        text-lg
+                        mt-6
+                        transition-all
+
+                        ${
+                          kiosBuka
+                            ? "bg-[#002366] hover:bg-blue-950"
+                            : "bg-gray-400 cursor-not-allowed"
+                        }
+                      `}
+                    >
+
+                      {
+                        kiosBuka
+                          ? "Pesan"
+                          : "Kios Tutup"
+                      }
+
+                    </button>
 
                   </div>
 

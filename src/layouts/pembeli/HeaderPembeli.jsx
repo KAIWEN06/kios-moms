@@ -1,6 +1,4 @@
-import React, {
-  useState
-} from "react";
+import React, { useState } from "react";
 
 import {
   NavLink,
@@ -11,16 +9,8 @@ const HeaderPembeli = () => {
 
   const navigate = useNavigate();
 
-  // =========================
-  // SIDEBAR
-  // =========================
-
   const [openMenu, setOpenMenu] =
     useState(false);
-
-  // =========================
-  // MENU
-  // =========================
 
   const menu = [
 
@@ -59,10 +49,6 @@ const HeaderPembeli = () => {
   return (
 
     <>
-      {/* ========================= */}
-      {/* HEADER */}
-      {/* ========================= */}
-
       <header
         className="
         bg-[#002366]
@@ -76,9 +62,10 @@ const HeaderPembeli = () => {
 
         <div
           className="
-          w-full
+          max-w-7xl
+          mx-auto
           px-4
-          lg:px-10
+          sm:px-5
           h-24
           flex
           items-center
@@ -86,60 +73,57 @@ const HeaderPembeli = () => {
           "
         >
 
-          {/* ========================= */}
-          {/* KIRI */}
-          {/* ========================= */}
+          <div
+            onClick={() =>
+              navigate("/")
+            }
+            className="
+            cursor-pointer
+            flex
+            items-center
+            gap-3
+            "
+          >
 
-          <div className="flex items-center gap-5">
-
-            {/* BUTTON MENU */}
-
-            <button
-              onClick={() =>
-                setOpenMenu(true)
-              }
+            <div
               className="
-              lg:hidden
-              w-14
-              h-14
-              rounded-2xl
+              w-10
+              h-10
+              rounded-full
               bg-[#FF8C00]
-              text-white
-              text-3xl
-              font-black
-              hover:scale-105
-              transition-all
-              duration-300
+              flex
+              items-center
+              justify-center
+              font-bold
+              text-lg
               shadow-lg
               "
             >
 
-              ☰
+              K
 
-            </button>
+            </div>
 
-            {/* LOGO */}
+            <div>
 
-            <div
-              onClick={() =>
-                navigate("/")
-              }
-              className="cursor-pointer"
-            >
+              <h1
+                className="
+                text-lg
+                font-bold
+                leading-none
+                "
+              >
 
-              <h1 className="text-4xl font-black">
-
-                Kios{" "}
-
-                <span className="text-[#FF8C00]">
-
-                  Mom's
-
-                </span>
+                Kios Mom's
 
               </h1>
 
-              <p className="text-sm text-white/60">
+              <p
+                className="
+                text-xs
+                text-white/70
+                "
+              >
 
                 Sistem Pemesanan Digital
 
@@ -148,10 +132,6 @@ const HeaderPembeli = () => {
             </div>
 
           </div>
-
-          {/* ========================= */}
-          {/* MENU DESKTOP */}
-          {/* ========================= */}
 
           <ul
             className="
@@ -162,77 +142,93 @@ const HeaderPembeli = () => {
             "
           >
 
-            {menu.map((item) => (
+            {
+              menu.map(
+                (item) => (
 
-              <li key={item.path}>
+                  <li key={item.path}>
 
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `
-                    text-[16px]
-                    font-bold
-                    transition-all
-                    duration-300
-                    
-                    ${
-                      isActive
+                    <NavLink
+                      to={item.path}
+                      className={({
+                        isActive
+                      }) =>
+                        `
+                        text-[16px]
+                        font-bold
+                        transition-all
+                        duration-300
 
-                        ? "text-[#FF8C00]"
+                        ${
+                          isActive
+                            ? "text-[#FF8C00]"
+                            : "text-white hover:text-[#FF8C00]"
+                        }
+                        `
+                      }
+                    >
 
-                        : "text-white hover:text-[#FF8C00]"
-                    }
-                    
-                    `
-                  }
-                >
+                      {item.nama}
 
-                  {item.nama}
+                    </NavLink>
 
-                </NavLink>
+                  </li>
 
-              </li>
-
-            ))}
+                )
+              )
+            }
 
           </ul>
+
+          <button
+            onClick={() =>
+              setOpenMenu(!openMenu)
+            }
+            className="
+            lg:hidden
+            w-14
+            h-14
+            rounded-2xl
+            bg-[#FF8C00]
+            text-white
+            text-3xl
+            font-black
+            hover:scale-105
+            transition-all
+            duration-300
+            shadow-lg
+            "
+          >
+
+            {openMenu ? "✕" : "☰"}
+
+          </button>
 
         </div>
 
       </header>
 
-      {/* ========================= */}
-      {/* SIDEBAR MOBILE */}
-      {/* ========================= */}
-
       <div
         className={`
-        
         fixed
         top-0
         left-0
-        h-full
+        h-screen
         w-[320px]
+        max-w-[85vw]
         bg-[#002366]
         shadow-2xl
         z-[999]
         transition-all
         duration-300
-        
+
         ${
           openMenu
-
             ? "translate-x-0"
-
             : "-translate-x-full"
         }
-        
         `}
       >
-
-        {/* ========================= */}
-        {/* HEADER SIDEBAR */}
-        {/* ========================= */}
 
         <div
           className="
@@ -241,18 +237,27 @@ const HeaderPembeli = () => {
           border-white/10
           flex
           items-center
-          justify-between
           px-6
           "
         >
 
           <div>
 
-            <h1 className="text-3xl font-black text-white">
+            <h1
+              className="
+              text-3xl
+              font-black
+              text-white
+              "
+            >
 
               Kios{" "}
 
-              <span className="text-[#FF8C00]">
+              <span
+                className="
+                text-[#FF8C00]
+                "
+              >
 
                 Mom's
 
@@ -260,38 +265,25 @@ const HeaderPembeli = () => {
 
             </h1>
 
-            <p className="text-sm text-white/50">
+            <p
+              className="
+              text-sm
+              text-white/50
+              "
+            >
 
-              Menu Navigasi
+              Sistem Pemesanan Digital
 
             </p>
 
           </div>
 
-          {/* CLOSE */}
-
-          <button
-            onClick={() =>
-              setOpenMenu(false)
-            }
-            className="
-            text-4xl
-            text-[#FF8C00]
-            "
-          >
-
-            ×
-
-          </button>
-
         </div>
-
-        {/* ========================= */}
-        {/* MENU MOBILE */}
-        {/* ========================= */}
 
         <div
           className="
+          h-[calc(100vh-96px)]
+          overflow-y-auto
           p-6
           flex
           flex-col
@@ -299,51 +291,50 @@ const HeaderPembeli = () => {
           "
         >
 
-          {menu.map((item, index) => (
+          {
+            menu.map(
+              (item) => (
 
-            <NavLink
-              key={index}
-              to={item.path}
-              onClick={() =>
-                setOpenMenu(false)
-              }
-              className={({ isActive }) =>
-                `
-                w-full
-                text-left
-                px-6
-                py-5
-                rounded-2xl
-                font-black
-                text-lg
-                transition-all
-                duration-300
-                
-                ${
-                  isActive
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() =>
+                    setOpenMenu(false)
+                  }
+                  className={({
+                    isActive
+                  }) =>
+                    `
+                    w-full
+                    text-left
+                    px-6
+                    py-5
+                    rounded-2xl
+                    font-black
+                    text-lg
+                    transition-all
+                    duration-300
 
-                    ? "bg-[#FF8C00] text-white"
+                    ${
+                      isActive
+                        ? "bg-[#FF8C00] text-white"
+                        : "bg-white/5 text-white hover:bg-[#FF8C00]"
+                    }
+                    `
+                  }
+                >
 
-                    : "bg-white/5 text-white hover:bg-[#FF8C00]"
-                }
-                
-                `
-              }
-            >
+                  {item.nama}
 
-              {item.nama}
+                </NavLink>
 
-            </NavLink>
-
-          ))}
+              )
+            )
+          }
 
         </div>
 
       </div>
-
-      {/* ========================= */}
-      {/* BACKDROP */}
-      {/* ========================= */}
 
       {
         openMenu && (

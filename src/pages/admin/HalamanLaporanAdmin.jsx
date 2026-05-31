@@ -550,9 +550,9 @@ const handleDownloadLaporan =
     try {
       setLoading(true);
       const { data = [], error } = await supabase
-        .from('history_pesanan')
-        .select('*')
-        .eq('status', 'Selesai');
+      .from('pesanan')
+      .select('*')
+      .eq('status', 'selesai');
 
       if (error) throw error;
       setHistoryData(data);
@@ -734,111 +734,147 @@ const handleDownloadLaporan =
         <p className="text-gray-500">Statistik penjualan kios.</p>
       </div>
 
-      <div className="bg-white rounded-[35px] p-6 shadow-sm mb-10">
-        <div className="flex flex-wrap gap-3 mb-6">
-          {['hari', 'minggu', 'bulan', 'tahun'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilter(type)}
-              className={`px-5 py-3 rounded-2xl font-black capitalize ${
-                filter === type ? 'bg-[#002366] text-white' : 'bg-[#f8f9fc]'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
+<div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
 
-        <div className="flex flex-wrap gap-4">
-          {filter === 'hari' && (
-            <select
-              value={selectedDay}
-              onChange={(e) => setSelectedDay(Number(e.target.value))}
-              className="px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-            >
-              {Array.from({ length: getDaysInMonth(selectedMonth, selectedYear) }, (_, i) => i + 1)
-                .filter((day) => availableDays.includes(day))
-                .map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-            </select>
-          )}
+  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
 
-          {filter === 'minggu' && (
-            <select
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-            >
-              {allWeekRanges
-                .filter((w) => availableWeeks.includes(w.weekNum))
-                .map((w) => (
-                  <option key={w.weekNum} value={w.weekNum}>
-                    {w.label}
-                  </option>
-                ))}
-            </select>
-          )}
+    {/* KIRI */}
+    <div className="flex-1">
 
-          {(filter === 'hari' || filter === 'minggu' || filter === 'bulan') && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-            >
-              {bulanList
-                .map((bulan, index) => ({ bulan, index }))
-                .filter((item) => availableMonths.includes(item.index))
-                .map((item) => (
-                  <option key={item.index} value={item.index}>
-                    {item.bulan}
-                  </option>
-                ))}
-            </select>
-          )}
-
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-          >
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-wrap gap-3 mt-6">
+      <div className="flex flex-wrap gap-3 mb-5">
+        {['hari', 'minggu', 'bulan', 'tahun'].map((type) => (
           <button
-            onClick={handleResetFilter}
-            className="px-5 py-3 rounded-2xl bg-[#f8f9fc] font-black text-[#002366]"
-          >
-            Reset Filter
-          </button>
-
-          <button
-            onClick={handleDownloadLaporan}
-            disabled={currentFilteredLength === 0}
-            className={`px-5 py-3 rounded-2xl font-black ${
-              currentFilteredLength === 0
-                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                : 'bg-[#002366] text-white'
+            key={type}
+            onClick={() => setFilter(type)}
+            className={`px-6 py-3 rounded-2xl font-black capitalize transition-all ${
+              filter === type
+                ? 'bg-[#002366] text-white'
+                : 'bg-[#f8f9fc] text-[#002366]'
             }`}
           >
-            Download Laporan
+            {type}
           </button>
-        </div>
-
-        {getPeriodStatus() && (
-          <div className="mt-5 text-sm text-[#FF8C00] font-semibold">
-            {getPeriodStatus()}
-          </div>
-        )}
+        ))}
       </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+
+        {filter === 'hari' && (
+          <select
+            value={selectedDay}
+            onChange={(e) => setSelectedDay(Number(e.target.value))}
+            className="w-[110px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
+          >
+            {Array.from(
+              { length: getDaysInMonth(selectedMonth, selectedYear) },
+              (_, i) => i + 1
+            )
+              .filter((day) => availableDays.includes(day))
+              .map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ))}
+          </select>
+        )}
+
+        {filter === 'minggu' && (
+          <select
+            value={selectedWeek}
+            onChange={(e) => setSelectedWeek(Number(e.target.value))}
+            className="min-w-[320px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
+          >
+            {allWeekRanges
+              .filter((w) => availableWeeks.includes(w.weekNum))
+              .map((w) => (
+                <option key={w.weekNum} value={w.weekNum}>
+                  {w.label}
+                </option>
+              ))}
+          </select>
+        )}
+
+        {(filter === 'hari' ||
+          filter === 'minggu' ||
+          filter === 'bulan') && (
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="w-[180px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
+          >
+            {bulanList
+              .map((bulan, index) => ({
+                bulan,
+                index
+              }))
+              .filter((item) =>
+                availableMonths.includes(item.index)
+              )
+              .map((item) => (
+                <option
+                  key={item.index}
+                  value={item.index}
+                >
+                  {item.bulan}
+                </option>
+              ))}
+          </select>
+        )}
+
+        <select
+          value={selectedYear}
+          onChange={(e) =>
+            setSelectedYear(Number(e.target.value))
+          }
+          className="w-[130px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
+        >
+          {availableYears.map((year) => (
+            <option
+              key={year}
+              value={year}
+            >
+              {year}
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={handleResetFilter}
+          className="px-6 py-3 rounded-2xl bg-[#f8f9fc] font-black text-[#002366]"
+        >
+          Reset Filter
+        </button>
+
+      </div>
+
+      {getPeriodStatus() && (
+        <div className="mt-4 text-sm text-[#FF8C00] font-semibold">
+          {getPeriodStatus()}
+        </div>
+      )}
+
+    </div>
+
+    {/* KANAN */}
+    <div className="flex-shrink-0">
+
+      <button
+        onClick={handleDownloadLaporan}
+        disabled={currentFilteredLength === 0}
+        className={`px-8 py-4 rounded-2xl font-black shadow-lg transition-all ${
+          currentFilteredLength === 0
+            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+            : 'bg-[#FF8C00] text-white hover:scale-105'
+        }`}
+      >
+        Download Laporan
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         <div className="bg-white rounded-[30px] p-6 shadow-sm">

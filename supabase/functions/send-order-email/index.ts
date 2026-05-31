@@ -24,16 +24,15 @@ serve(async (req) => {
 
   try {
 
-    const {
-
-      email,
-      nama_pembeli,
-      kode_pesanan,
-      nomor_meja,
-      total_harga,
-      items,
-
-    } = await req.json()
+const {
+  email,
+  nama_pembeli,
+  kode_pesanan,
+  nomor_meja,
+  total_harga,
+  items,
+  access_token
+} = await req.json();
 
     
     /* =========================================
@@ -63,26 +62,57 @@ serve(async (req) => {
     ========================================= */
 
     const itemsHtml =
-      items?.map((item: any) => {
+  items
+    ?.map(
+      (item) => `
+      <tr>
 
-        return `
-          <tr>
-            <td style="padding:8px;">
-              ${item.nama}
-            </td>
+        <td
+          style="
+            padding:12px;
+            text-align:left;
+            width:60%;
+          "
+        >
+          ${item.nama}
+        </td>
 
-            <td style="padding:8px;">
-              ${item.qty}x
-            </td>
+        <td
+          style="
+            padding:12px;
+            text-align:center;
+            width:15%;
+          "
+        >
+          ${item.qty}x
+        </td>
 
-            <td style="padding:8px;">
-              Rp ${Number(item.harga)
-                .toLocaleString('id-ID')}
-            </td>
-          </tr>
-        `
+        <td
+          style="
+            padding:12px;
+            text-align:right;
+            width:25%;
+          "
+        >
+          Rp ${(
+            Number(item.harga) *
+            Number(item.qty)
+          ).toLocaleString('id-ID')}
+        </td>
 
-      }).join('')
+      </tr>
+    `
+    )
+    .join("");
+
+      const baseUrl =
+  'http://localhost:5173';
+
+const statusUrl =
+  `${baseUrl}/status-pesanan?token=${access_token}`;
+
+const riwayatUrl =
+  `${baseUrl}/riwayat-pesanan-pembeli?token=${access_token}`;
 
     /* =========================================
        EMAIL HTML
@@ -107,7 +137,7 @@ serve(async (req) => {
         </h1>
 
         <h2>
-          Pesanan Berhasil
+          Pesanan Berhasil Dibuat
         </h2>
 
         <p>
@@ -115,8 +145,69 @@ serve(async (req) => {
         </p>
 
         <p>
-          Pesanan Anda berhasil dibuat.
+          Pesanan Anda dengan kode <b>${kode_pesanan}</b> telah berhasil dibuat dan sedang diproses. Kami akan mengatarkan pesanan anda ketika sudah siap. Pastikan nomor meja anda sesuai dan terlihat dengan benar untuk memudahkan kami mengantarkan pesanan anda.
         </p>
+
+        <div
+        style="
+          margin-top:20px;
+          margin-bottom:20px;
+          padding:15px;
+          background:#f8f9fc;
+          border-radius:10px;
+        "
+      >
+
+        <p>
+          Simpan tautan berikut untuk melihat
+          status pesanan dan riwayat pesanan anda
+          tanpa perlu login kapan saja.
+        </p>
+
+        <div
+          style="
+            text-align:center;
+            margin-top:20px;
+          "
+        >
+
+          <a
+            href="${statusUrl}"
+            style="
+              display:inline-block;
+              background:#0b2c74;
+              color:#ffffff;
+              text-decoration:none;
+              padding:14px 28px;
+              border-radius:8px;
+              font-weight:bold;
+              margin-bottom:12px;
+            "
+          >
+            Lihat Status Pesanan
+          </a>
+
+          <br/>
+
+          <a
+            href="${riwayatUrl}"
+            style="
+              display:inline-block;
+              background:#ffffff;
+              color:#0b2c74;
+              border:2px solid #0b2c74;
+              text-decoration:none;
+              padding:12px 26px;
+              border-radius:8px;
+              font-weight:bold;
+            "
+          >
+            Lihat Riwayat Pesanan
+          </a>
+
+        </div>
+
+      </div>
 
         <hr />
 
@@ -149,15 +240,15 @@ serve(async (req) => {
               "
             >
 
-              <th style="padding:10px;">
+              <th style="padding:10px;width:60%;">
                 Menu
               </th>
 
-              <th style="padding:10px;">
-                Qty
+              <th style="padding:10px;width:15%;">
+                Jumlah  
               </th>
 
-              <th style="padding:10px;">
+              <th style="padding:10px;width:25%;text-align:right;">
                 Harga
               </th>
 

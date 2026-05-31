@@ -43,6 +43,9 @@ const StatusPesananPembeli = () => {
 
   const kodePesanan =
     searchParams.get("kode");
+  
+  const tokenFromUrl =
+  searchParams.get("token");
 
   /* =====================================================
      FETCH PESANAN
@@ -55,25 +58,76 @@ const StatusPesananPembeli = () => {
 
         setLoading(true);
 
-        let query =
-          supabase
-            .from("pesanan")
-              .select(`
-                *,
-                meja (
-                  nomor_meja
-                )
-              `)
-            .in("status", [
-              "menunggu_pembayaran",
-              "diproses"
-            ])
-            .order(
-              "created_at",
-              {
-                ascending: false
-              }
+        let token =
+            tokenFromUrl ||
+            localStorage.getItem(
+              "guestToken"
             );
+
+          if (!token) {
+
+            setPesanan([]);
+
+            setLoading(false);
+
+            return;
+          }
+
+          if (tokenFromUrl) {
+
+            localStorage.setItem(
+              "guestToken",
+              tokenFromUrl
+            );
+          }
+
+        const {
+  data: guest,
+  error: guestError
+} = await supabase
+  .from("guest_customer")
+  .select("id")
+  .eq(
+    "access_token",
+    token
+  )
+  .single();
+
+if (
+  guestError ||
+  !guest
+) {
+
+  setPesanan([]);
+
+  setLoading(false);
+
+  return;
+}
+
+let query =
+  supabase
+    .from("pesanan")
+    .select(`
+      *,
+      meja (
+        nomor_meja
+      )
+    `)
+    .eq(
+      "guest_customer_id",
+      guest.id
+    )
+    .in("status", [
+      "menunggu_pembayaran",
+      "diproses"
+    ])
+    .order(
+      "created_at",
+      {
+        ascending: false
+      }
+    );
 
         // FILTER DARI URL
         if (kodePesanan) {
@@ -118,12 +172,14 @@ const StatusPesananPembeli = () => {
      LOAD DATA
   ===================================================== */
 
-  useEffect(() => {
+useEffect(() => {
 
-    fetchPesanan();
+  fetchPesanan();
 
-  }, [kodePesanan]);
-
+}, [
+  kodePesanan,
+  tokenFromUrl
+]);
   /* =====================================================
      REALTIME
   ===================================================== */
@@ -276,6 +332,21 @@ const filteredPesanan =
 
           };
 
+        case "dibatalkan":
+
+        return {
+
+          label:
+            "Dibatalkan",
+
+          bg:
+            "bg-red-500",
+
+          text:
+            "Pesanan telah dibatalkan."
+
+        };
+
         default:
 
           return {
@@ -294,7 +365,6 @@ const filteredPesanan =
       }
 
     };
-
 
     const handlePesanLagi = (items) => {
 
@@ -341,6 +411,54 @@ const filteredPesanan =
   }
 
 };
+
+const handleBatalkanPesanan =
+  async (id) => {
+
+    try {
+
+      const { error } =
+        await supabase
+          .from("pesanan")
+          .update({
+
+            status:
+              "dibatalkan",
+
+            alasan_pembatalan:
+              "Dibatalkan oleh pembeli",
+
+            dibatalkan_pada:
+              new Date()
+
+          })
+          .eq("id", id)
+          .eq(
+            "status",
+            "menunggu_pembayaran"
+          );
+
+      if (error)
+        throw error;
+
+      toast.success(
+        "Pesanan berhasil dibatalkan"
+      );
+
+      fetchPesanan();
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.error(
+        "Gagal membatalkan pesanan"
+      );
+
+    }
+
+  };
+
 
   /* =====================================================
      LOADING
@@ -1081,12 +1199,149 @@ const filteredPesanan =
 
                     {/* ACTION */}
 
-                    <div className="mt-8">
+                    <div
+                      className="
+                      mt-8
+                      flex
+                      flex-wrap
+                      gap-3
+                      "
+                    >
+
+                      {
+                        item.status ===
+                          "menunggu_pembayaran" && (
+
+                          <button
+                            onClick={() =>
+                              handleBatalkanPesanan(
+                                item.id
+                              )
+                            }
+                            className="
+                            bg-red-600
+                            hover:bg-red-700
+                            text-white
+                            font-black
+                            px-6
+                            py-4
+                            rounded-2xl
+                            md:rounded-3xl
+                            "
+                          >
+
+                            Batalkan Pesanan
+
+                          </button>
+
+                        )
+                      }
 
                       <button
-                        onClick={() =>
-                          handlePesanLagi(items)
-                        }
+                        onClick={() => {
+
+                          try {
+
+                            const keranjangLama =
+                              JSON.parse(
+                                localStorage.getItem(
+                                  "keranjang"
+                                )
+                              ) || [];
+
+                            let updatedKeranjang =
+                              [...keranjangLama];
+
+                            items.forEach(
+                              (menu) => {
+
+                                const existingItem =
+                                  updatedKeranjang.find(
+                                    (x) =>
+                                      x.id === menu.id
+                                  );
+
+                                if (existingItem) {
+
+                                  updatedKeranjang =
+                                    updatedKeranjang.map(
+                                      (x) => {
+
+                                        if (
+                                          x.id === menu.id
+                                        ) {
+
+                                          return {
+
+                                            ...x,
+
+                                            qty:
+                                              x.qty +
+                                              menu.qty
+
+                                          };
+
+                                        }
+
+                                        return x;
+
+                                      }
+                                    );
+
+                                }
+
+                                else {
+
+                                  updatedKeranjang.push({
+
+                                    id: menu.id,
+
+                                    nama:
+                                      menu.nama,
+
+                                    harga:
+                                      menu.harga,
+
+                                    gambar:
+                                      menu.gambar ||
+                                      menu.img,
+
+                                    qty:
+                                      menu.qty
+
+                                  });
+
+                                }
+
+                              }
+                            );
+
+                            localStorage.setItem(
+                              "keranjang",
+                              JSON.stringify(
+                                updatedKeranjang
+                              )
+                            );
+
+                            toast.success(
+                              "Pesanan berhasil dimasukkan ke keranjang"
+                            );
+
+                            navigate(
+                              "/keranjang"
+                            );
+
+                          } catch (error) {
+
+                            console.log(error);
+
+                            toast.error(
+                              "Gagal memesan ulang"
+                            );
+
+                          }
+
+                        }}
                         className="
                         bg-[#002366]
                         hover:bg-blue-950

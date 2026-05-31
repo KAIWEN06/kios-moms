@@ -33,8 +33,40 @@ export default function DaftarMenuPembeli() {
     setKeranjang
   ] = useState([]);
 
+  const [kiosBuka, setKiosBuka] =
+  useState(true);
+
   const [loading, setLoading] =
     useState(true);
+
+  const ambilStatusKios =
+  async () => {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase
+        .from("pengaturan_kios")
+        .select("buka")
+        .eq("id", 1)
+        .single();
+
+      if (error)
+        throw error;
+
+      setKiosBuka(
+        data?.buka ?? true
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
+  };
 
   /* =====================================================
      LOAD AWAL
@@ -42,11 +74,14 @@ export default function DaftarMenuPembeli() {
 
   useEffect(() => {
 
-    ambilMenu();
+  ambilMenu();
 
-    ambilKeranjang();
+  ambilKeranjang();
 
-  }, []);
+  ambilStatusKios();
+
+}, []);
+
 
   /* =====================================================
      REALTIME MENU
@@ -86,6 +121,57 @@ export default function DaftarMenuPembeli() {
 
   }, []);
 
+  useEffect(() => {
+
+  const channel =
+    supabase
+      .channel(
+        "realtime-kios"
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pengaturan_kios"
+        },
+        (payload) => {
+
+          setKiosBuka(
+            payload.new.buka
+          );
+
+        }
+      )
+      .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    );
+
+  };
+
+}, []);
+
+  useEffect(() => {
+
+  if (!kiosBuka) {
+
+    localStorage.removeItem(
+      "keranjang"
+    );
+
+    setKeranjang([]);
+
+    toast.error(
+      "Kios telah ditutup. Keranjang dikosongkan."
+    );
+
+  }
+
+}, [kiosBuka]);
   /* =====================================================
      AMBIL MENU
   ===================================================== */
@@ -348,6 +434,16 @@ export default function DaftarMenuPembeli() {
             (x) =>
               x.id === item.id
           );
+
+        if (!kiosBuka) {
+
+          toast.error(
+            "Kios sedang tutup"
+          );
+
+          return;
+
+        }
 
         if (!menuValid) {
 
@@ -668,6 +764,30 @@ export default function DaftarMenuPembeli() {
 
       </p>
 
+      {
+      !kiosBuka && (
+
+        <div
+          className="
+          mt-6
+          bg-red-100
+          border
+          border-red-300
+          text-red-700
+          rounded-2xl
+          p-4
+          font-bold
+          "
+        >
+
+          Kios Mom's sedang tutup.
+          Pemesanan sementara tidak tersedia.
+
+        </div>
+
+      )
+    }
+
       {/* EMPTY */}
 
       {
@@ -887,27 +1007,31 @@ export default function DaftarMenuPembeli() {
                     ) : !existingItem ? (
 
                       <button
+                        disabled={!kiosBuka}
                         onClick={() =>
-                          tambahPesanan(
-                            item
-                          )
+                          tambahPesanan(item)
                         }
-                        className="
-                        w-full
-                        bg-[#002366]
-                        hover:bg-blue-950
-                        text-white
-                        py-4
-                        rounded-[20px]
-                        font-black
-                        text-lg
-                        mt-5
-                        transition-all
-                        "
+                        className={`
+                          w-full
+                          py-4
+                          rounded-[20px]
+                          font-black
+                          text-lg
+                          mt-5
+                          transition-all
+
+                          ${
+                            kiosBuka
+                              ? "bg-[#002366] hover:bg-blue-950 text-white"
+                              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          }
+                        `}
                       >
-
-                        Tambah Pesanan
-
+                        {
+                          kiosBuka
+                            ? "Tambah Pesanan"
+                            : "Kios Tutup"
+                        }
                       </button>
 
                     ) : (
