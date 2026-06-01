@@ -49,20 +49,15 @@ const RiwayatPesanan = () => {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('history_pesanan')
-        .select('*')
-        .eq('status', 'Selesai')
-        .order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('pesanan')
+          .select('*')
+          .eq('status', 'selesai')
+          .order('created_at', {
+            ascending: false
+          });
 
       if (error) throw error;
-
-      console.table(
-  data.map(item => ({
-    id: item.id,
-    created_at: item.created_at
-  }))
-);
 
       setHistoryOrders(data || []);
     } catch (error) {
@@ -341,7 +336,7 @@ const availablePeriods = useMemo(() => {
               >
                 <div className="flex flex-col">
                   <span className="text-gray-800">
-                    <b className="font-bold">Meja {o.nomor_meja}</b>
+                    <b className="font-bold">Meja {o.meja_id}</b>
                     <span className="mx-1 text-gray-400">|</span>
                     {new Date(o.created_at).toLocaleString('id-ID')}
                   </span>
