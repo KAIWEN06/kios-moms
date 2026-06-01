@@ -40,6 +40,8 @@ const KelolaMenuAdmin = ({
   const [deleteMenu, setDeleteMenu] =
     useState(null);
 
+  const [selectedFile, setSelectedFile] = useState(null);
+
   // FILE CHANGE
   const handleFileChange = (e) => {
 
@@ -91,77 +93,6 @@ const KelolaMenuAdmin = ({
     setLoading(true);
 
     try {
-
-      // =========================
-  // TAMBAH MENU
-  // =========================
-
-  const handleUpload = async () => {
-
-    // VALIDASI
-    if (!form.nama || !form.harga || !file) {
-      toast.error('Isi semua data termasuk gambar');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // 1. UPLOAD GAMBAR
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `menu/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('kios_moms')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // 2. GET URL GAMBAR
-      const { data: { publicUrl } } = supabase.storage
-        .from('kios_moms')
-        .getPublicUrl(filePath);
-
-      // 3. SIMPAN KE DATABASE
-      const { error: insertError } = await supabase
-        .from('menu')
-        .insert([{
-          nama: form.nama,
-          harga: parseInt(form.harga),
-          gambar: publicUrl,
-          status: 'aktif'
-        }]);
-
-      if (insertError) throw insertError;
-
-      // REFRESH DATA & TOAST SAKSES
-      fetchMenu();
-      toast.success('Menu berhasil ditambahkan');
-
-      /* =====================================================
-         PROSES RESET FORM (TAMBAHKAN KODE INI)
-      ===================================================== */
-      setForm({
-        nama: '',
-        harga: ''
-      });
-      setFile(null);
-
-      // Reset tampilan nama file pada tag input file HTML
-      const fileInput = document.getElementById('menu-file-input');
-      if (fileInput) {
-        fileInput.value = '';
-      }
-
-    } catch (error) {
-      console.error(error);
-      toast.error('Gagal menambahkan menu');
-    } finally {
-      setLoading(false);
-    }
-  };
-
       // FILE NAME
       const fileName =
         `${Date.now()}_${file.name}`;
@@ -214,24 +145,21 @@ const KelolaMenuAdmin = ({
         }
       );
 
-      // RESET
+      // FIX: PROSES RESET TOTAL SETELAH INPUT BERHASIL
       setForm({
         nama: '',
         harga: ''
       });
-
       setFile(null);
+      setSelectedFile(null);
 
-      // RESET FILE INPUT
       const fileInput =
         document.getElementById(
           'upload-file'
         );
 
       if (fileInput) {
-
         fileInput.value = '';
-
       }
 
       // REFRESH
@@ -260,7 +188,6 @@ const KelolaMenuAdmin = ({
   // =========================
   // EDIT MENU
   // =========================
-
 
   const saveEdit = async (
     menuId
@@ -427,22 +354,18 @@ const KelolaMenuAdmin = ({
 
   };
 
-  const [selectedFile, setSelectedFile] = useState(null);
   const handleRemoveFile = () => {
-  setSelectedFile(null);
+    setSelectedFile(null);
+    setFile(null);
 
-  const fileInput =
-    document.getElementById("upload-file");
+    const fileInput =
+      document.getElementById("upload-file");
 
-  if (fileInput) {
-    fileInput.value = "";
-  }
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
 
-  setFormData((prev) => ({
-    ...prev,
-    gambar: null,
-  }));
-};
   // =========================
   // FILTER MENU
   // =========================
@@ -504,7 +427,6 @@ const KelolaMenuAdmin = ({
 
           {/* NAMA */}
           <input
-            id="menu-file-input"
             type="text"
             value={form.nama}
             onChange={(e) =>
@@ -520,7 +442,6 @@ const KelolaMenuAdmin = ({
 
           {/* HARGA */}
           <input
-            id="menu-file-input"
             type="number"
             value={form.harga}
             onChange={(e) =>
@@ -538,15 +459,14 @@ const KelolaMenuAdmin = ({
           <div className="md:col-span-2">
 
             <input
-              id="menu-file-input"
               id="upload-file"
               type="file"
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const fileObj = e.target.files?.[0];
 
-                if (!file) return;
+                if (!fileObj) return;
 
-                setSelectedFile(file);
+                setSelectedFile(fileObj);
 
                 handleFileChange(e);
               }}
@@ -661,153 +581,207 @@ const KelolaMenuAdmin = ({
       {/* MENU */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
 
-        {visibleMenu.map((m) => (
+        {filteredMenu.length === 0 ? (
+          <div className="col-span-2 md:col-span-4 text-center py-10 text-gray-400 font-bold">
+            Tidak ada menu dalam kategori ini.
+          </div>
+        ) : (
+          visibleMenu.map((m) => (
+            <div
+              key={m.id}
+              className={`bg-white p-4 rounded-3xl shadow-sm border flex flex-col justify-between transition-all ${
+                m.stok ===
+                'kosong'
+                  ? 'opacity-70'
+                  : ''
+              }`}
+            >
 
-          <div
-            key={m.id}
-            className={`bg-white p-4 rounded-3xl shadow-sm border flex flex-col justify-between transition-all ${
-              m.stok ===
-              'kosong'
-                ? 'opacity-70'
-                : ''
-            }`}
-          >
+              <div>
 
-            <div>
+                {/* IMAGE */}
+                <img
+                  src={m.img}
+                  alt={m.nama}
+                  className={`w-full h-32 object-cover rounded-2xl mb-3 ${
+                    m.stok ===
+                    'kosong'
+                      ? 'grayscale'
+                      : ''
+                  }`}
+                />
 
-              {/* IMAGE */}
-              <img
-                src={m.img}
-                alt={m.nama}
-                className={`w-full h-32 object-cover rounded-2xl mb-3 ${
-                  m.stok ===
-                  'kosong'
-                    ? 'grayscale'
-                    : ''
-                }`}
-              />
+                {/* NAMA */}
+                <h4 className="font-bold text-sm truncate">
 
-              {/* NAMA */}
-              <h4 className="font-bold text-sm truncate">
+                  {m.nama}
 
-                {m.nama}
+                </h4>
 
-              </h4>
+                {/* HARGA */}
+                <p className="text-[#FF8C00] font-black text-xs mb-3">
 
-              {/* HARGA */}
-              <p className="text-[#FF8C00] font-black text-xs mb-3">
+                  Rp {Number(
+                    m.harga
+                  ).toLocaleString()}
 
-                Rp {Number(
-                  m.harga
-                ).toLocaleString()}
-
-              </p>
-
-            </div>
-
-            {/* STATUS */}
-            {activeTab === 'aktif' ? (
-
-              <select
-                className="w-full p-2 bg-gray-50 border rounded-lg text-xs font-bold outline-none cursor-pointer hover:border-[#FF8C00] transition-colors"
-                value={
-                  m.stok ===
-                  'kosong'
-                    ? 'kosong'
-                    : 'ada'
-                }
-                onChange={async (
-                  e
-                ) => {
-
-                  const newStatus =
-                    e.target.value;
-
-                  await updateStokMenu(
-                    m.id,
-                    newStatus
-                  );
-
-                  if (
-                    fetchMenu
-                  ) {
-
-                    await fetchMenu();
-
-                  }
-
-                  toast.success(
-                    'Status menu berhasil diperbarui!',
-                    {
-                      style: {
-                        borderRadius: '18px',
-                        padding: '16px',
-                        fontWeight: '700'
-                      }
-                    }
-                  );
-
-                }}
-              >
-
-                <option value="ada">
-
-                  Tersedia
-
-                </option>
-
-                <option value="kosong">
-
-                  Tidak Tersedia
-
-                </option>
-
-              </select>
-
-            ) : (
-
-              <div className="w-full bg-gray-200 text-gray-500 text-center py-3 rounded-xl text-xs font-black uppercase tracking-wide">
-
-                Menu Dinonaktifkan
+                </p>
 
               </div>
 
-            )}
+              {/* STATUS */}
+              {activeTab === 'aktif' ? (
 
-            {/* ACTION */}
-            <div className="flex flex-col gap-2 mt-3">
+                <select
+                  className="w-full p-2 bg-gray-50 border rounded-lg text-xs font-bold outline-none cursor-pointer hover:border-[#FF8C00] transition-colors"
+                  value={
+                    m.stok ===
+                    'kosong'
+                      ? 'kosong'
+                      : 'ada'
+                  }
+                  onChange={async (
+                    e
+                  ) => {
 
-              {/* EDIT */}
-              <button
-                onClick={() =>
-                  setEditingId(
-                    m.id
-                  )
-                }
-                className="w-full bg-[#002366] text-white py-2 rounded-xl text-xs font-black hover:bg-blue-900 transition-all"
-              >
+                    const newStatus =
+                      e.target.value;
 
-                Edit
+                    await updateStokMenu(
+                      m.id,
+                      newStatus
+                    );
 
-              </button>
+                    if (
+                      fetchMenu
+                    ) {
 
-              {/* NONAKTIF */}
-              {activeTab ===
-              'nonaktif' ? (
+                      await fetchMenu();
 
-                <div className="flex gap-2">
+                    }
 
-                  {/* AKTIFKAN */}
+                    toast.success(
+                      'Status menu berhasil diperbarui!',
+                      {
+                        style: {
+                          borderRadius: '18px',
+                          padding: '16px',
+                          fontWeight: '700'
+                        }
+                      }
+                    );
+
+                  }}
+                >
+
+                  <option value="ada">
+
+                    Tersedia
+
+                  </option>
+
+                  <option value="kosong">
+
+                    Tidak Tersedia
+
+                  </option>
+
+                </select>
+
+              ) : (
+
+                <div className="w-full bg-gray-200 text-gray-500 text-center py-3 rounded-xl text-xs font-black uppercase tracking-wide">
+
+                  Menu Dinonaktifkan
+
+                </div>
+
+              )}
+
+              {/* ACTION */}
+              <div className="flex flex-col gap-2 mt-3">
+
+                {/* EDIT */}
+                <button
+                  onClick={() =>
+                    setEditingId(
+                      m.id
+                    )
+                  }
+                  className="w-full bg-[#002366] text-white py-2 rounded-xl text-xs font-black hover:bg-blue-900 transition-all"
+                >
+
+                  Edit
+
+                </button>
+
+                {/* NONAKTIF */}
+                {activeTab ===
+                'nonaktif' ? (
+
+                  <div className="flex gap-2">
+
+                    {/* AKTIFKAN */}
+                    <button
+                      onClick={async () => {
+
+                        await updateStokMenu(
+                          m.id,
+                          'ada'
+                        );
+
+                        toast.success(
+                          'Menu berhasil diaktifkan!'
+                        );
+
+                        if (
+                          fetchMenu
+                        ) {
+
+                          await fetchMenu();
+
+                        }
+
+                        setActiveTab(
+                          'aktif'
+                        );
+
+                      }}
+                      className="flex-1 bg-green-500 text-white py-2 rounded-xl text-xs font-black"
+                    >
+
+                      Aktifkan
+
+                    </button>
+
+                    {/* HAPUS */}
+                    <button
+                      onClick={() =>
+                        setDeleteMenu(
+                          m
+                        )
+                      }
+                      className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-black"
+                    >
+
+                      Hapus
+
+                    </button>
+
+                  </div>
+
+                ) : (
+
                   <button
                     onClick={async () => {
 
                       await updateStokMenu(
                         m.id,
-                        'ada'
+                        'nonaktif'
                       );
 
                       toast.success(
-                        'Menu berhasil diaktifkan!'
+                        'Menu dipindahkan ke nonaktif'
                       );
 
                       if (
@@ -819,130 +793,83 @@ const KelolaMenuAdmin = ({
                       }
 
                       setActiveTab(
-                        'aktif'
+                        'nonaktif'
                       );
 
                     }}
-                    className="flex-1 bg-green-500 text-white py-2 rounded-xl text-xs font-black"
+                    className="w-full bg-gray-500 text-white py-2 rounded-xl text-xs font-black"
                   >
 
-                    Aktifkan
+                    Nonaktifkan
 
                   </button>
 
-                  {/* HAPUS */}
-                  <button
-                    onClick={() =>
-                      setDeleteMenu(
-                        m
-                      )
-                    }
-                    className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-black"
-                  >
+                )}
 
-                    Hapus
-
-                  </button>
-
-                </div>
-
-              ) : (
-
-                <button
-                  onClick={async () => {
-
-                    await updateStokMenu(
-                      m.id,
-                      'nonaktif'
-                    );
-
-                    toast.success(
-                      'Menu dipindahkan ke nonaktif'
-                    );
-
-                    if (
-                      fetchMenu
-                    ) {
-
-                      await fetchMenu();
-
-                    }
-
-                    setActiveTab(
-                      'nonaktif'
-                    );
-
-                  }}
-                  className="w-full bg-gray-500 text-white py-2 rounded-xl text-xs font-black"
-                >
-
-                  Nonaktifkan
-
-                </button>
-
-              )}
+              </div>
 
             </div>
 
-          </div>
-
-        ))}
+          ))
+        )}
 
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-center gap-4 mt-10">
+      {totalPage > 1 && (
+        <div className="flex items-center justify-center gap-4 mt-10">
 
-        <button
-          disabled={
-            currentPage === 1
-          }
-          onClick={() =>
-            setCurrentPage(
-              currentPage - 1
-            )
-          }
-          className={`px-5 py-3 rounded-2xl font-bold ${
-            currentPage === 1
-              ? 'bg-gray-100 text-gray-300'
-              : 'bg-[#002366] text-white'
-          }`}
-        >
+          <button
+            disabled={
+              currentPage === 1
+            }
+            onClick={() =>
+              setCurrentPage(
+                currentPage - 1
+              )
+            }
+            className={`px-5 py-3 rounded-2xl font-bold ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-300'
+                : 'bg-[#002366] text-white'
+            }`}
+          >
 
-          Prev
+            Prev
 
-        </button>
+          </button>
 
-        <div className="font-black text-[#002366]">
+          <div className="font-black text-[#002366]">
 
-          {currentPage} /{' '}
-          {totalPage}
+            {currentPage} /{' '}
+            {totalPage}
+
+          </div>
+
+          <button
+            disabled={
+              currentPage ===
+              totalPage
+            }
+            onClick={() =>
+              setCurrentPage(
+                currentPage + 1
+              )
+            }
+            className={`px-5 py-3 rounded-2xl font-bold ${
+              currentPage ===
+              totalPage
+                ? 'bg-gray-100 text-gray-300'
+                : 'bg-[#FF8C00] text-white'
+            }`}
+          >
+
+            Next
+
+          </button>
 
         </div>
-
-        <button
-          disabled={
-            currentPage ===
-            totalPage
-          }
-          onClick={() =>
-            setCurrentPage(
-              currentPage + 1
-            )
-          }
-          className={`px-5 py-3 rounded-2xl font-bold ${
-            currentPage ===
-            totalPage
-              ? 'bg-gray-100 text-gray-300'
-              : 'bg-[#FF8C00] text-white'
-          }`}
-        >
-
-          Next
-
-        </button>
-
-      </div>
+      )}
 
       {/* EDIT POPUP */}
       {editingId && (
