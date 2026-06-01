@@ -110,19 +110,6 @@ const RiwayatPesanan = () => {
     ].sort((a, b) => a - b);
   }, [availablePeriods]);
 
-  // FIX UTAMA: Paksa batas maxDate berada di ujung akhir hari (23:59:59) tanggal tersebut
-  const minMaxDates = useMemo(() => {
-    if (historyOrders.length === 0) return { min: null, max: null };
-    
-    const minDate = new Date(historyOrders[historyOrders.length - 1].created_at);
-    minDate.setHours(0, 0, 0, 0);
-
-    const maxDate = new Date(historyOrders[0].created_at);
-    maxDate.setHours(23, 59, 59, 999); // Mengamankan agar tanggal 1 Juni penuh tercover kalender
-    
-    return { min: minDate, max: maxDate };
-  }, [historyOrders]);
-
   const months = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -193,9 +180,9 @@ const RiwayatPesanan = () => {
             popperClassName="z-50"
             popperPlacement="bottom-end"
             
+            // Kita gunakan filterDate saja untuk melock tanggal kosong, 
+            // Kita cabut minDate & maxDate bawaan agar kalender tidak nge-bug/stuck saat data loading selesai
             filterDate={isDateAvailable}
-            minDate={minMaxDates.min}
-            maxDate={minMaxDates.max}
             
             className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
             
@@ -203,13 +190,18 @@ const RiwayatPesanan = () => {
               date,
               changeYear,
               changeMonth,
-              decreaseMonth,
-              increaseMonth,
-              prevMonthButtonDisabled,
-              nextMonthButtonDisabled
             }) => {
               const currentYear = date.getFullYear();
               const currentMonth = date.getMonth();
+
+              // Hitung secara manual posisi index bulan aktif saat ini di dalam riwayat data
+              const currentPosition = availablePeriods.findIndex(
+                (p) => p.year === currentYear && p.month === currentMonth
+              );
+
+              // Cek ketersediaan periode sebelum dan sesudahnya berdasarkan data asli
+              const hasPrev = currentPosition > 0;
+              const hasNext = currentPosition !== -1 && currentPosition < availablePeriods.length - 1;
 
               // Ambil daftar bulan yang valid hanya untuk tahun yang sedang aktif di UI kalender
               const monthsInSelectedYear = availablePeriods.filter(
@@ -221,8 +213,14 @@ const RiwayatPesanan = () => {
                   {/* Tombol ke bulan sebelumnya */}
                   <button
                     type="button"
-                    disabled={prevMonthButtonDisabled}
-                    onClick={decreaseMonth}
+                    disabled={!hasPrev}
+                    onClick={() => {
+                      const prev = availablePeriods[currentPosition - 1];
+                      if (prev) {
+                        changeYear(prev.year);
+                        changeMonth(prev.month);
+                      }
+                    }}
                     className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
                   >
                     ←
@@ -265,11 +263,17 @@ const RiwayatPesanan = () => {
                     </select>
                   </div>
 
-                  {/* Tombol ke bulan selanjutnya */}
+                  {/* Tombol ke bulan selanjutnya (Ini akan membuka gembok Juni 2026 Anda) */}
                   <button
                     type="button"
-                    disabled={nextMonthButtonDisabled}
-                    onClick={increaseMonth}
+                    disabled={!hasNext}
+                    onClick={() => {
+                      const next = availablePeriods[currentPosition + 1];
+                      if (next) {
+                        changeYear(next.year);
+                        changeMonth(next.month);
+                      }
+                    }}
                     className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
                   >
                     →
