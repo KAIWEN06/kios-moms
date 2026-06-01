@@ -82,31 +82,54 @@ const RiwayatPesanan = () => {
   }, [historyOrders]);
 
   // 2. DATA BULAN & TAHUN YANG ADA
-  const availablePeriods = useMemo(() => {
-    const periods = [];
-    historyOrders.forEach((o) => {
-      const date = new Date(o.created_at);
-      periods.push({
-        year: date.getFullYear(),
-        month: date.getMonth() // 0 = Januari, 1 = Februari, dst.
-      });
+const availablePeriods = useMemo(() => {
+
+  const periods = [];
+
+  historyOrders.forEach((o) => {
+
+    const date = new Date(o.created_at);
+
+    periods.push({
+      year: date.getFullYear(),
+      month: date.getMonth()
     });
 
-    console.log('AVAILABLE PERIODS', periods);
+  });
 
-    return periods
-      .filter(
-        (value, index, self) =>
-          index ===
-          self.findIndex(
-            (v) => v.year === value.year && v.month === value.month
-          )
-      )
-      .sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.month - b.month;
-      });
-  }, [historyOrders]);
+  const result = periods
+    .filter(
+      (value, index, self) =>
+        index ===
+        self.findIndex(
+          (v) =>
+            v.year === value.year &&
+            v.month === value.month
+        )
+    )
+    .sort((a, b) => {
+
+      if (a.year !== b.year) {
+        return a.year - b.year;
+      }
+
+      return a.month - b.month;
+
+    });
+
+  console.log(
+    'AVAILABLE PERIODS FINAL',
+    result
+  );
+
+  console.log(
+    'LAST 5 PERIODS',
+    result.slice(-5)
+  );
+
+  return result;
+
+}, [historyOrders]);
 
   // 3. TAHUN YANG ADA DATA
   const availableYears = useMemo(() => {
@@ -200,13 +223,28 @@ const RiwayatPesanan = () => {
               const currentMonth = date.getMonth();
 
               // Hitung secara manual posisi index bulan aktif saat ini di dalam riwayat data
-              const currentPosition = availablePeriods.findIndex(
-                (p) => p.year === currentYear && p.month === currentMonth
-              );
+              let currentPosition =
+                availablePeriods.findIndex(
+                  (p) =>
+                    p.year === currentYear &&
+                    p.month === currentMonth
+                );
+
+              if (
+                currentPosition === -1 &&
+                availablePeriods.length > 0
+              ) {
+                currentPosition =
+                  availablePeriods.length - 1;
+              }
 
               // Cek ketersediaan periode sebelum dan sesudahnya berdasarkan data asli
-              const hasPrev = currentPosition > 0;
-              const hasNext = currentPosition !== -1 && currentPosition < availablePeriods.length - 1;
+            const hasPrev =
+              currentPosition > 0;
+
+            const hasNext =
+              currentPosition <
+              availablePeriods.length - 1;
 
               // Ambil daftar bulan yang valid hanya untuk tahun yang sedang aktif di UI kalender
               const monthsInSelectedYear = availablePeriods.filter(
