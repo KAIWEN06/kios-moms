@@ -35,7 +35,6 @@ const AdminProsesPesanan = () => {
   const fetchPesanan = async () => {
     try {
       setLoading(true);
-      // MENAMBAHKAN RELASI meja(nomor_meja) AGAR INFORMASI MEJA LENGKAP SAAT DIKIRIM KE EMAIL
       const { data, error } = await supabase
         .from("pesanan")
         .select("*, meja:meja_id(nomor_meja)")
@@ -169,16 +168,10 @@ const AdminProsesPesanan = () => {
           toast.success("Menu berhasil dihapus dari pesanan");
         }
       } else {
-        // AMBIL DATA DETAIL PESANAN TERBARU SEBELUM UPDATE UNTUK DATA STRUK EMAIL
-        const { data: detailPesanan, error: errFetchDetail } = await supabase
-          .from("pesanan")
-          .select("*, meja:meja_id(nomor_meja)")
-          .eq("id", targetId)
-          .single();
+        // 1. CARI DATA PESANAN YANG AKAN DIPROSES DARI STATE AKTIF
+        const dataPesananTarget = pesanan.find((p) => p.id === targetId);
 
-        if (errFetchDetail) throw errFetchDetail;
-
-        // UPDATE STATUS PESANAN DI DATABASE
+        // 2. UPDATE STATUS PESANAN DI DATABASE
         const { error: errStatus } = await supabase
           .from("pesanan")
           .update({ status: targetStatus })
@@ -196,20 +189,21 @@ const AdminProsesPesanan = () => {
 
         toast.success(`Pesanan berhasil diperbarui ke: ${targetStatus}`);
 
-        // TRIGGER EDGE FUNCTION UNTUK MENGIRIM EMAIL (HANYA JIKA PINDAH KE STATUS 'DIPROSES')
-        if (targetStatus === "diproses" && detailPesanan?.email) {
+        // 3. TRIGGER PENGIRIMAN EMAIL MENGGUNAKAN DATA TARGET YANG VALID
+        if (targetStatus === "diproses" && dataPesananTarget && dataPesananTarget.email) {
           try {
+            // FIX: DISESUAIKAN KE "send-order-email" AGAR COCOK DENGAN DASHBOARD SUPABASE
             await supabase.functions.invoke("send-order-email", {
               body: {
-                email: detailPesanan.email,
-                nama_pembeli: detailPesanan.nama_pembeli || "Pelanggan Kios Moms",
-                kode_pesanan: detailPesanan.kode_pesanan || `KM-${detailPesanan.id}`,
-                nomor_meja: detailPesanan.meja?.nomor_meja || targetMejaId,
-                total_harga: detailPesanan.total_harga,
-                items: detailPesanan.items
+                email: dataPesananTarget.email,
+                nama_pembeli: dataPesananTarget.nama_pembeli || "Pelanggan Kios Moms",
+                kode_pesanan: dataPesananTarget.kode_pesanan || `KM-${dataPesananTarget.id}`,
+                nomor_meja: dataPesananTarget.meja?.nomor_meja || targetMejaId,
+                total_harga: dataPesananTarget.total_harga,
+                items: dataPesananTarget.items
               }
             });
-            console.log("Struk email berhasil dikirim ke: " + detailPesanan.email);
+            console.log("Request email berhasil dikirim ke antrean server.");
           } catch (emailErr) {
             console.error("Gagal memicu fungsi pengiriman email:", emailErr);
           }
@@ -377,7 +371,7 @@ const AdminProsesPesanan = () => {
                   key={item.id}
                   className="bg-white rounded-[32px] border border-slate-200/60 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden group"
                 >
-                  {/* BARIS ATAS / CARD HEADER */}
+                  {/* CARD HEADER */}
                   <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between gap-3">
                     <div className="truncate">
                       <span className="text-[10px] font-mono tracking-widest uppercase bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-bold">
@@ -408,7 +402,7 @@ const AdminProsesPesanan = () => {
                     </div>
                   </div>
 
-                  {/* KONTEN TENAH / LIST MENU */}
+                  {/* LIST MENU */}
                   <div className="p-5 flex-1 flex flex-col justify-between min-h-[220px]">
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -494,7 +488,7 @@ const AdminProsesPesanan = () => {
                       )}
                     </div>
 
-                    {/* FOOTER TOTAL & TOMBOL AKSI */}
+                    {/* TOTAL & TOMBOL AKSI */}
                     <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
