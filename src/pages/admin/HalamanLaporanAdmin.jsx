@@ -867,7 +867,7 @@ const handleDownloadLaporan =
             : 'bg-[#FF8C00] text-white hover:scale-105'
         }`}
       >
-        Download Laporan
+        Unduh Laporan
       </button>
 
     </div>

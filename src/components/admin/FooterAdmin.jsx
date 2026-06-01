@@ -2,11 +2,9 @@ import React from 'react';
 
 const AdminFooter = () => {
   return (
-    <div style={{ textAlign: 'center', padding: '20px', fontSize: '0.8rem', color: '#0a0909' }}>
-      &copy; 2026 Kios Mom's Admin Panel
-
-      <p>vshzszgscsg</p>
-    </div>
+    <footer className="w-full py-5 text-center text-xs font-medium text-slate-400 border-t border-slate-100 bg-white">
+      <p>&copy; {new Date().getFullYear()} Kios Mom's Admin Panel. semua hak dilindungi.</p>
+    </footer>
   );
 };
 

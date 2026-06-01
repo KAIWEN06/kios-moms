@@ -51,13 +51,13 @@ const LoginAdmin = () => {
     switch (message) {
 
       case 'Invalid login credentials':
-        return 'Email atau password salah!';
+        return 'Email atau kata sandi salah!';
 
       case 'Email rate limit exceeded':
-        return 'Terlalu banyak request. Coba lagi nanti!';
+        return 'Terlalu banyak permintaan. Coba lagi nanti!';
 
       case 'Auth session missing':
-        return 'Session tidak ditemukan!';
+        return 'Sesi tidak ditemukan!';
 
       default:
         return 'Terjadi kesalahan!';
@@ -135,7 +135,7 @@ const LoginAdmin = () => {
       if (!email || !password) {
 
         toast.error(
-          'Semua field wajib diisi!'
+          'Semua kolom wajib diisi!'
         );
 
         return;
@@ -183,7 +183,7 @@ const LoginAdmin = () => {
         }
 
         toast.success(
-          'Login berhasil!'
+          'Berhasil masuk!'
         );
 
         // RESET FORM
@@ -261,7 +261,7 @@ const LoginAdmin = () => {
           ) {
 
             toast.error(
-              'Terlalu banyak request. Tunggu 60 detik!'
+              'Terlalu banyak permintaan. Tunggu 60 detik!'
             );
 
             setCooldown(true);
@@ -333,7 +333,7 @@ const LoginAdmin = () => {
 
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
 
-            Login Admin
+            Masuk Admin
 
           </h1>
 

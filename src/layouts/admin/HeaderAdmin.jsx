@@ -29,7 +29,7 @@ const HeaderAdmin = () => {
       await supabase.auth.signOut();
 
       toast.success(
-        'Berhasil logout!'
+        'Berhasil keluar!'
       );
 
       navigate('/');
@@ -39,7 +39,7 @@ const HeaderAdmin = () => {
       console.error(error);
 
       toast.error(
-        'Gagal logout!'
+        'Gagal keluar!'
       );
 
     }
@@ -250,7 +250,7 @@ const HeaderAdmin = () => {
               "
             >
 
-              Logout
+              Keluar
 
             </button>
 
@@ -448,7 +448,7 @@ const HeaderAdmin = () => {
             "
           >
 
-            Logout
+            Keluar
 
           </button>
 

@@ -59,10 +59,10 @@ const [
     switch (message) {
 
       case 'Auth session missing':
-        return 'Link reset password tidak valid!';
+        return 'Link reset kata sandi tidak valid!';
 
       case 'New password should be different from the old password':
-        return 'Password baru harus berbeda dari password lama!';
+        return 'Kata sandi baru harus berbeda dari kata sandi lama!';
 
       default:
         return 'Terjadi kesalahan!';
@@ -86,7 +86,7 @@ const [
         if (!session) {
 
           toast.error(
-            'Link reset tidak valid atau sudah expired!'
+            'Link reset tidak valid atau sudah kadaluarsa!'
           );
 
           navigate('/admin/login');
@@ -150,7 +150,7 @@ const [
       ) {
 
         toast.error(
-          'Semua field wajib diisi!'
+          'Semua kolom wajib diisi!'
         );
 
         return;
@@ -160,7 +160,7 @@ const [
       if (password.length < 8) {
 
         toast.error(
-          'Password minimal 8 karakter!'
+          'Kata sandi minimal 8 karakter!'
         );
 
         return;
@@ -170,7 +170,7 @@ const [
       if (!/[A-Z]/.test(password)) {
 
         toast.error(
-          'Password harus memiliki huruf besar!'
+          'Kata sandi harus memiliki huruf besar!'
         );
 
         return;
@@ -180,7 +180,7 @@ const [
       if (!/[a-z]/.test(password)) {
 
         toast.error(
-          'Password harus memiliki huruf kecil!'
+          'Kata sandi harus memiliki huruf kecil!'
         );
 
         return;
@@ -190,7 +190,7 @@ const [
       if (!/[0-9]/.test(password)) {
 
         toast.error(
-          'Password harus memiliki angka!'
+          'Kata sandi harus memiliki angka!'
         );
 
         return;
@@ -200,7 +200,7 @@ const [
       if (!/[^A-Za-z0-9]/.test(password)) {
 
         toast.error(
-          'Password harus memiliki simbol!'
+          'Kata sandi harus memiliki simbol!'
         );
 
         return;
@@ -210,7 +210,7 @@ const [
       if (password !== confirmPassword) {
 
         toast.error(
-          'Konfirmasi password tidak cocok!'
+          'Konfirmasi kata sandi tidak cocok!'
         );
 
         return;
@@ -247,7 +247,7 @@ const [
         }
 
         toast.success(
-          'Password berhasil diubah!'
+          'Kata sandi berhasil diubah!'
         );
 
         // AKTIFKAN COOLDOWN
@@ -306,13 +306,13 @@ const [
 
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
 
-            Reset Password
+            Reset kata sandi
 
           </h1>
 
           <p className="text-sm opacity-70">
 
-            Buat password baru untuk akun admin
+            Buat kata sandi baru untuk akun admin
 
           </p>
 
@@ -329,7 +329,7 @@ const [
 
             <label className="text-sm mb-2 block font-medium">
 
-              Password Baru
+              Kata Sandi Baru
 
             </label>
 
@@ -342,7 +342,7 @@ const [
                     ? 'text'
                     : 'password'
                 }
-                placeholder="Masukkan password baru"
+                placeholder="Masukkan kata sandi baru"
                 value={password}
                 onChange={(e) =>
                   setPassword(
@@ -433,7 +433,7 @@ const [
 
             <label className="text-sm mb-2 block font-medium">
 
-              Konfirmasi Password
+              Konfirmasi kata sandi baru
 
             </label>
 
@@ -446,7 +446,7 @@ const [
                     ? 'text'
                     : 'password'
                 }
-                placeholder="Ulangi password baru"
+                placeholder="Ulangi kata sandi baru"
                 value={confirmPassword}
                 onChange={(e) =>
                   setConfirmPassword(
@@ -543,7 +543,7 @@ const [
               ? 'Memproses...'
               : cooldown
                 ? `Tunggu ${countdown}s`
-                : 'Simpan Password'}
+                : 'Simpan kata sandi baru'}
 
           </button>
 

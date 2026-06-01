@@ -492,7 +492,7 @@ const PesananAdmin = ({
         </div>
       </div>
 
-      {/* POPUP MODAL DIALOG: MEJA SELECTOR */}
+{/* POPUP MODAL DIALOG: MEJA SELECTOR */}
       {showMejaPopup && (
         <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white w-full max-w-[500px] rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]">
@@ -513,11 +513,17 @@ const PesananAdmin = ({
               </button>
             </div>
 
+            {/* GRID MEJA RESPONSIVE */}
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5 py-2 overflow-y-auto pr-1">
               {Array.from({ length: 10 }, (_, i) => {
+                // SINKRONISASI ANGKA SESUAI PAGE (1-10, 11-20, dst)
                 const nomor = (currentPage - 1) * 10 + i + 1;
+                
+                // VALIDASI AGAR TIDAK MELEBIHI TOTAL MEJA 100
+                if (nomor > 100) return null;
+
                 const isUsed = usedTables.includes(nomor);
-                const selected = meja === nomor;
+                const selected = Number(meja) === nomor;
 
                 return (
                   <button
@@ -545,6 +551,7 @@ const PesananAdmin = ({
               })}
             </div>
 
+            {/* CONTROLLER PAGINATION */}
             <div className="flex items-center justify-between mt-5 pt-3 border-t border-slate-100">
               <button
                 disabled={currentPage === 1}
@@ -552,7 +559,7 @@ const PesananAdmin = ({
                 type="button"
                 className={`px-4 h-10 rounded-xl font-bold text-xs transition-all min-h-[40px] flex items-center justify-center border gap-1.5 ${
                   currentPage === 1
-                    ? "bg-slate-50 text-slate-300 border-slate-100"
+                    ? "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
                     : "bg-white border-slate-200 hover:bg-slate-50 text-slate-600 active:bg-slate-100"
                 }`}
               >
@@ -562,17 +569,17 @@ const PesananAdmin = ({
                 Prev
               </button>
 
-              <p className="font-extrabold text-[#002366] text-sm bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                Meja {((currentPage - 1) * 10) + 1} - {currentPage * 10}
+              <p className="font-extrabold text-[#002366] text-sm bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 whitespace-nowrap">
+                Meja {((currentPage - 1) * 10) + 1} - {Math.min(currentPage * 10, 100)}
               </p>
 
               <button
-                disabled={currentPage === maxPage}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
+                disabled={currentPage === 10} // MAKSIMAL 10 PAGE UNTUK MEJA 1-100
+                onClick={() => setCurrentPage((prev) => prev + 1)} // FIX: DIUBAH MENJADI TAMBAH (+)
                 type="button"
                 className={`px-4 h-10 rounded-xl font-bold text-xs transition-all min-h-[40px] flex items-center justify-center border gap-1.5 ${
-                  currentPage === maxPage
-                    ? "bg-slate-50 text-slate-300 border-slate-100"
+                  currentPage === 10
+                    ? "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
                     : "bg-white border-slate-200 hover:bg-orange-50 hover:text-[#FF8C00] hover:border-orange-200 text-slate-600"
                 }`}
               >

@@ -1235,35 +1235,78 @@ localStorage.setItem(
 
           </div>
 
-          {/* BUTTON */}
+{/* BUTTON ACTIONS RINGKASAN */}
 
-          <button
-            onClick={
-              handleKonfirmasiPesanan
-            }
-            disabled={loading}
+          <div 
             className="
-            w-full
-            h-[65px]
-            rounded-2xl
-            bg-[#FF8C00]
-            text-white
-            font-black
-            text-xl
+            flex 
+            flex-col 
+            sm:flex-row 
+            gap-3 
             mt-8
-            disabled:opacity-50
             "
           >
 
-            {
-              loading
+            {/* TOMBOL BATALKAN */}
 
-                ? "MEMPROSES..."
+            <button
+              type="button"
+              onClick={() => navigate("/keranjang")}
+              className="
+              w-full
+              sm:w-1/3
+              h-[65px]
+              rounded-2xl
+              bg-red-100
+              hover:bg-red-200
+              text-red-600
+              font-black
+              text-xl
+              transition-all
+              order-2
+              sm:order-1
+              "
+            >
 
-                : "Konfirmasi Pesanan"
-            }
+              Batalkan
 
-          </button>
+            </button>
+
+            {/* TOMBOL KONFIRMASI PESANAN */}
+
+            <button
+              onClick={
+                handleKonfirmasiPesanan
+              }
+              disabled={loading}
+              className="
+              w-full
+              sm:w-2/3
+              h-[65px]
+              rounded-2xl
+              bg-[#FF8C00]
+              hover:bg-orange-600
+              text-white
+              font-black
+              text-xl
+              disabled:opacity-50
+              transition-all
+              order-1
+              sm:order-2
+              "
+            >
+
+              {
+                loading
+
+                  ? "MEMPROSES..."
+
+                  : "Konfirmasi Pesanan"
+              }
+
+            </button>
+
+          </div>
 
         </div>
 
@@ -1425,101 +1468,117 @@ localStorage.setItem(
 
         {/* PAGINATION */}
 
-        <div
-          className="
-          flex
-          items-center
-          justify-between
-          mt-6
-          "
-        >
+<div
+  className="
+  flex
+  items-center
+  justify-between
+  mt-6
+  flex-shrink-0
+  gap-2
+  "
+>
 
-          <button
-            disabled={
-              currentPage ===
-              1
-            }
-            onClick={() =>
-              setCurrentPage(
-                (
-                  prev
-                ) =>
-                  prev - 1
-              )
-            }
-            className="
-            px-6
-            h-[50px]
-            rounded-2xl
-            bg-gray-200
-            hover:bg-gray-300
-            text-gray-700
-            font-bold
-            transition-all
-            disabled:opacity-40
-            disabled:hover:bg-gray-200
-            "
-          >
+  <button
+    disabled={
+      currentPage ===
+      1
+    }
+    onClick={() =>
+      setCurrentPage(
+        (
+          prev
+        ) =>
+          prev - 1
+      )
+    }
+    className="
+    flex-1
+    sm:flex-none
+    px-3
+    sm:px-6
+    h-[45px]
+    sm:h-[50px]
+    rounded-2xl
+    bg-gray-200
+    hover:bg-gray-300
+    text-gray-700
+    font-bold
+    text-sm
+    sm:text-base
+    transition-all
+    disabled:opacity-40
+    disabled:hover:bg-gray-200
+    "
+  >
 
-            Sebelumnya
+    Sebelumnya
 
-          </button>
+  </button>
 
-          <p
-            className="
-            font-black
-            text-[#002366]
-            text-lg
-            "
-          >
+  <p
+    className="
+    font-black
+    text-[#002366]
+    text-sm
+    sm:text-lg
+    whitespace-nowrap
+    "
+  >
 
-            {
-              currentMeja[0]
-            }
+    {
+      currentMeja[0]
+    }
 
-            {" - "}
+    {" - "}
 
-            {
-              currentMeja[
-                currentMeja.length -
-                  1
-              ]
-            }
+    {
+      currentMeja[
+        currentMeja.length -
+          1
+      ]
+    }
 
-          </p>
+  </p>
 
-          <button
-            disabled={
-              currentPage ===
-              10
-            }
-            onClick={() =>
-              setCurrentPage(
-                (
-                  prev
-                ) =>
-                  prev + 1
-              )
-            }
-            className="
-            px-6
-            h-[50px]
-            rounded-2xl
-            bg-[#FF8C00]
-            hover:bg-orange-600
-            text-white
-            font-bold
-            transition-all
-            disabled:opacity-40
-            disabled:hover:bg-[#FF8C00]
-            "
-          >
+  <button
+    disabled={
+      currentPage ===
+      10
+    }
+    onClick={() =>
+      setCurrentPage(
+        (
+          prev
+        ) =>
+          prev + 1
+      )
+    }
+    className="
+    flex-1
+    sm:flex-none
+    px-3
+    sm:px-6
+    h-[45px]
+    sm:h-[50px]
+    rounded-2xl
+    bg-[#FF8C00]
+    hover:bg-orange-600
+    text-white
+    font-bold
+    text-sm
+    sm:text-base
+    transition-all
+    disabled:opacity-40
+    disabled:hover:bg-[#FF8C00]
+    "
+  >
 
-            Berikutnya
+    Berikutnya
 
-          </button>
+  </button>
 
-        </div>
+</div>
 
         {/* BUTTON */}
 
@@ -1564,6 +1623,8 @@ localStorage.setItem(
 
   )
 }
+
+
 
     </div>
 

@@ -516,7 +516,7 @@ const fetchMenuTerlaris =
               Belum Ada Data Pesanan
             </h3>
             <p className="text-slate-400 mt-2 text-xs sm:text-sm max-w-xs mx-auto">
-              Perhitungan menu terlaris akan otomatis terisi setelah terdapat transaksi berhasil.
+              Perhitungan menu terlaris akan otomatis terisi dan diperbarui setelah terdapat transaksi berhasil pada bulan baru ini.
             </p>
           </div>
         )}

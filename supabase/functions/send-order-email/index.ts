@@ -161,7 +161,7 @@ const riwayatUrl =
         <p>
           Simpan tautan berikut untuk melihat
           status pesanan dan riwayat pesanan anda
-          tanpa perlu login kapan saja.
+          tanpa perlu masuk kapan saja.
         </p>
 
         <div
