@@ -988,93 +988,46 @@ localStorage.setItem(
 
           </div>
 
-          {/* PEMBAYARAN */}
+        {/* PEMBAYARAN */}
+        <div>
+          <p className="font-bold text-[#002366] text-2xl mb-5">
+            Metode Pembayaran
+          </p>
 
-          <div>
-
-            <p
-              className="
-              font-bold
-              text-[#002366]
-              text-2xl
-              mb-5
-              "
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TUNAI */}
+            <button
+              type="button"
+              onClick={() => setMetodePembayaran("Tunai")}
+              className={`h-[70px] rounded-2xl border-2 font-black text-base transition-all flex items-center justify-center gap-3 min-h-[44px] ${
+                metodePembayaran === "Tunai"
+                  ? "bg-[#002366] text-white border-[#002366] shadow-md shadow-indigo-100"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-[#002366] hover:text-[#002366]"
+              }`}
             >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Tunai
+            </button>
 
-              Metode Pembayaran
-
-            </p>
-
-            <div
-              className="
-              grid
-              grid-cols-1
-              md:grid-cols-2
-              gap-4
-              "
+            {/* QRIS */}
+            <button
+              type="button"
+              onClick={() => setMetodePembayaran("QRIS")}
+              className={`h-[70px] rounded-2xl border-2 font-black text-base transition-all flex items-center justify-center gap-3 min-h-[44px] ${
+                metodePembayaran === "QRIS"
+                  ? "bg-[#FF8C00] text-white border-[#FF8C00] shadow-md shadow-orange-100"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-[#FF8C00] hover:text-[#FF8C00]"
+              }`}
             >
-
-              {/* TUNAI */}
-
-              <button
-                onClick={() =>
-                  setMetodePembayaran(
-                    "Tunai"
-                  )
-                }
-                className={`
-                h-[70px]
-                rounded-2xl
-                border-2
-                font-black
-
-                ${
-                  metodePembayaran ===
-                  "Tunai"
-
-                    ? "bg-[#002366] border-[#002366] text-white"
-
-                    : "bg-white border-gray-200 text-[#002366]"
-                }
-                `}
-              >
-
-                💵 Tunai
-
-              </button>
-
-              {/* QRIS */}
-
-              <button
-                onClick={() =>
-                  setMetodePembayaran(
-                    "QRIS"
-                  )
-                }
-                className={`
-                h-[70px]
-                rounded-2xl
-                border-2
-                font-black
-
-                ${
-                  metodePembayaran ===
-                  "QRIS"
-
-                    ? "bg-[#002366] border-[#002366] text-white"
-
-                    : "bg-white border-gray-200 text-[#002366]"
-                }
-                `}
-              >
-
-                📱 QRIS
-
-              </button>
-
-            </div>
-
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              QRIS
+            </button>
           </div>
+        </div>
 
         </div>
 
