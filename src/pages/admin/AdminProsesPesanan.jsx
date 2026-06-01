@@ -297,6 +297,38 @@ const AdminProsesPesanan = () => {
           .eq("id", targetId);
 
         if (error) throw error;
+        // Ambil access token customer
+let accessToken = null;
+
+if (targetPesanan.guest_customer_id) {
+  const { data: guest } = await supabase
+    .from("guest_customer")
+    .select("access_token")
+    .eq("id", targetPesanan.guest_customer_id)
+    .single();
+
+  accessToken = guest?.access_token || null;
+}
+
+    // Kirim email struk
+    const { data: emailData, error: emailError } =
+      await supabase.functions.invoke(
+        "send-order-email",
+        {
+          body: {
+            email: targetPesanan.email,
+            nama_pembeli: targetPesanan.nama_pembeli,
+            kode_pesanan: targetPesanan.kode_pesanan,
+            nomor_meja: targetPesanan.meja_id,
+            total_harga: totalBaru,
+            items: itemsAktif,
+            access_token: accessToken
+          }
+        }
+      );
+
+    console.log("EMAIL DATA:", emailData);
+    console.log("EMAIL ERROR:", emailError);
         toast.success("Pembayaran berhasil dikonfirmasi!");
 
       } else if (type === "hapus_menu") {
