@@ -292,50 +292,12 @@ const AdminProsesPesanan = () => {
         const totalBaru = itemsAktif.reduce((total, item) => total + Number(item.harga || 0) * Number(item.qty || 0), 0);
 
         const { error } = await supabase
-const { error } = await supabase
-  .from("pesanan")
-  .update({
-    items: itemsAktif,
-    total_harga: totalBaru,
-    status: "diproses"
-  })
-  .eq("id", targetId);
+          .from("pesanan")
+          .update({ items: itemsAktif, total_harga: totalBaru, status: "diproses" })
+          .eq("id", targetId);
 
-if (error) throw error;
-
-// Ambil access token dari guest_customer
-let accessToken = null;
-
-if (targetPesanan.guest_customer_id) {
-  const { data: guest } = await supabase
-    .from("guest_customer")
-    .select("access_token")
-    .eq("id", targetPesanan.guest_customer_id)
-    .single();
-
-  accessToken = guest?.access_token || null;
-}
-
-const { error: emailError } = await supabase.functions.invoke(
-  "send-order-email",
-  {
-    body: {
-      email: targetPesanan.email,
-      nama_pembeli: targetPesanan.nama_pembeli,
-      kode_pesanan: targetPesanan.kode_pesanan,
-      nomor_meja: targetPesanan.meja_id,
-      total_harga: totalBaru,
-      items: itemsAktif,
-      access_token: accessToken
-    }
-  }
-);
-
-if (emailError) {
-  console.error("Gagal mengirim email:", emailError);
-}
-
-toast.success("Pembayaran berhasil dikonfirmasi!");
+        if (error) throw error;
+        toast.success("Pembayaran berhasil dikonfirmasi!");
 
       } else if (type === "hapus_menu") {
         if (!targetPesanan) throw new Error("Pesanan tidak ditemukan");
