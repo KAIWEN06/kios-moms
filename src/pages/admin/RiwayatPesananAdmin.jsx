@@ -198,95 +198,103 @@ const RiwayatPesanan = () => {
             highlightDates={historyOrders.map((o) => new Date(o.created_at))}
             className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
             
-            renderCustomHeader={({ date, changeYear, changeMonth }) => {
-              const currentYear = date.getFullYear();
-              const currentMonth = date.getMonth();
+renderCustomHeader={({
+  date,
+  changeYear,
+  changeMonth
+}) => {
+  const currentYear = date.getFullYear();
+  const currentMonth = date.getMonth();
 
-              // Deteksi posisi bulan-tahun saat ini di dalam riwayat data
-              const currentPosition = availablePeriods.findIndex(
-                (p) => p.year === currentYear && p.month === currentMonth
-              );
+  // 1. AMANKAN JIKA DATA BELUM SELESAI FOMAT / LOADING
+  if (availablePeriods.length === 0) {
+    return <div className="p-3 text-center text-sm text-gray-500">Memuat periode...</div>;
+  }
 
-              const prevPeriod = availablePeriods[currentPosition - 1];
-              const nextPeriod = availablePeriods[currentPosition + 1];
+  const currentPosition = availablePeriods.findIndex(
+    (p) => p.year === currentYear && p.month === currentMonth
+  );
 
-              // Dropdown Bulan hanya menampilkan bulan yang BERADA DI TAHUN TERPILIH dan ADA DATANYA
-              const monthsInSelectedYear = availablePeriods.filter(
-                (p) => p.year === currentYear
-              );
+  const prevPeriod = availablePeriods[currentPosition - 1];
+  const nextPeriod = availablePeriods[currentPosition + 1];
 
-              return (
-                <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
-                  {/* Tombol ke Periode Berdata Sebelumnya */}
-                  <button
-                    type="button"
-                    disabled={!prevPeriod}
-                    onClick={() => {
-                      if (!prevPeriod) return;
-                      changeYear(prevPeriod.year);
-                      changeMonth(prevPeriod.month);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
-                  >
-                    ←
-                  </button>
+  const monthsInYear = availablePeriods.filter(
+    (p) => p.year === currentYear
+  );
 
-                  <div className="flex gap-2 flex-1">
-                    {/* Dropdown Bulan Berdata */}
-                    <select
-                      value={currentMonth}
-                      onChange={(e) => {
-                        changeMonth(Number(e.target.value));
-                      }}
-                      className="flex-1 h-10 px-3 rounded-xl border bg-gray-50"
-                    >
-                      {monthsInSelectedYear.map((p) => (
-                        <option key={`${p.year}-${p.month}`} value={p.month}>
-                          {months[p.month]}
-                        </option>
-                      ))}
-                    </select>
+  // 2. JIKA BULAN JUNI BELUM TERDAFTAR DI BULAN-BULAN TAHUN INI, 
+  // PAKSA TETAP TAMPILKAN BULAN JUNI AGAR USER BISA MEMILIHNYA
+  const isCurrentMonthIncluded = monthsInYear.some(p => p.month === currentMonth);
+  if (!isCurrentMonthIncluded && historyOrders.length > 0) {
+    monthsInYear.push({ year: currentYear, month: currentMonth });
+    monthsInYear.sort((a, b) => a.month - b.month);
+  }
 
-                    {/* Dropdown Tahun Berdata */}
-                    <select
-                      value={currentYear}
-                      onChange={(e) => {
-                        const year = Number(e.target.value);
-                        // Cari bulan pertama yang tersedia pada tahun baru pilihan user
-                        const firstAvailableMonth = availablePeriods.find(
-                          (p) => p.year === year
-                        );
-                        changeYear(year);
-                        if (firstAvailableMonth) {
-                          changeMonth(firstAvailableMonth.month);
-                        }
-                      }}
-                      className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50"
-                    >
-                      {availableYears.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
+      <button
+        type="button"
+        disabled={!prevPeriod}
+        onClick={() => {
+          if (!prevPeriod) return;
+          changeYear(prevPeriod.year);
+          changeMonth(prevPeriod.month);
+        }}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
+      >
+        ←
+      </button>
 
-                  {/* Tombol ke Periode Berdata Selanjutnya */}
-                  <button
-                    type="button"
-                    disabled={!nextPeriod}
-                    onClick={() => {
-                      if (!nextPeriod) return;
-                      changeYear(nextPeriod.year);
-                      changeMonth(nextPeriod.month);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
-                  >
-                    →
-                  </button>
-                </div>
-              );
-            }}
+      <div className="flex gap-2 flex-1">
+        <select
+          value={currentMonth}
+          onChange={(e) => {
+            changeMonth(Number(e.target.value));
+          }}
+          className="flex-1 h-10 px-3 rounded-xl border bg-gray-50"
+        >
+          {monthsInYear.map((p) => (
+            <option key={`${p.year}-${p.month}`} value={p.month}>
+              {months[p.month]}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={currentYear}
+          onChange={(e) => {
+            const year = Number(e.target.value);
+            const firstMonth = availablePeriods.find((p) => p.year === year);
+            changeYear(year);
+            if (firstMonth) {
+              changeMonth(firstMonth.month);
+            }
+          }}
+          className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50"
+        >
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        disabled={!nextPeriod}
+        onClick={() => {
+          if (!nextPeriod) return;
+          changeYear(nextPeriod.year);
+          changeMonth(nextPeriod.month);
+        }}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
+      >
+        →
+      </button>
+    </div>
+  );
+}}
           />
         </div>
       </div>
