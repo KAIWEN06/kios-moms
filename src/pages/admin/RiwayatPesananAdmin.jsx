@@ -56,6 +56,9 @@ const RiwayatPesanan = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      console.log('DATA HISTORY', data);
+
       setHistoryOrders(data || []);
     } catch (error) {
       console.error('Gagal mengambil riwayat:', error.message);
@@ -88,6 +91,8 @@ const RiwayatPesanan = () => {
         month: date.getMonth() // 0 = Januari, 1 = Februari, dst.
       });
     });
+
+    console.log('AVAILABLE PERIODS', periods);
 
     return periods
       .filter(
