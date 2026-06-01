@@ -108,48 +108,89 @@ const RiwayatPesanan = () => {
 
   }, [historyOrders]);
 
-  const availableYears = useMemo(() => {
+const availablePeriods = useMemo(() => {
 
-  return [
-    ...new Set(
-
-      historyOrders.map((o) =>
-        new Date(o.created_at).getFullYear()
-      )
-
-    )
-  ];
-
-}, [historyOrders]);
-
-const availableMonths = useMemo(() => {
-
-  const months = new Set();
+  const periods = [];
 
   historyOrders.forEach((o) => {
 
     const date = new Date(o.created_at);
 
-    const year = date.getFullYear();
-    const month = date.getMonth();
-
-    months.add(`${year}-${month}`);
+    periods.push({
+      year: date.getFullYear(),
+      month: date.getMonth()
+    });
 
   });
 
-  return months;
+  return periods
+    .filter(
+      (value, index, self) =>
+        index ===
+        self.findIndex(
+          (v) =>
+            v.year === value.year &&
+            v.month === value.month
+        )
+    )
+    .sort((a, b) => {
+
+      if (a.year !== b.year) {
+        return a.year - b.year;
+      }
+
+      return a.month - b.month;
+
+    });
 
 }, [historyOrders]);
 
+const availableYears = useMemo(() => {
 
+  return [
+    ...new Set(
+      availablePeriods.map(
+        (p) => p.year
+      )
+    )
+  ].sort();
+
+}, [availablePeriods]);
+
+const months = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember'
+];
   // FILTER DATE YANG TERSEDIA
-  const isDateAvailable = (date) => {
+const isDateAvailable = (date) => {
 
-    return availableDates.has(
+  const today = new Date();
+
+  today.setHours(
+    23,
+    59,
+    59,
+    999
+  );
+
+  return (
+    date <= today &&
+    availableDates.has(
       date.toDateString()
-    );
+    )
+  );
 
-  };
+};
 
   // FILTER DATA
   const filteredOrders = historyOrders.filter((o) => {
@@ -229,205 +270,187 @@ const availableMonths = useMemo(() => {
         {/* FILTER DATE */}
         <div className="relative w-full md:w-[260px]">
 
-          <DatePicker
-            selected={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            locale={id}
-            dateFormat="dd MMMM yyyy"
-            placeholderText="Pilih tanggal"
-            showPopperArrow={false}
-            calendarClassName="rounded-2xl border shadow-xl"
-            popperClassName="z-50"
-            popperPlacement="bottom-end"
-            showMonthDropdown
-            showYearDropdown
-            dropdownMode="select"
-            scrollableYearDropdown
-            yearDropdownItemNumber={10}
-            filterDate={isDateAvailable}
-            highlightDates={[
-              ...historyOrders.map((o) =>
-                new Date(o.created_at)
-              )
-            ]}
-            className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+<DatePicker
+  selected={selectedDate}
+  onChange={(date) => setSelectedDate(date)}
+  locale={id}
+  dateFormat="dd MMMM yyyy"
+  placeholderText="Pilih tanggal"
+  showPopperArrow={false}
+  calendarClassName="rounded-2xl border shadow-xl"
+  popperClassName="z-50"
+  popperPlacement="bottom-end"
+  filterDate={isDateAvailable}
+  highlightDates={
+    historyOrders.map((o) =>
+      new Date(o.created_at)
+    )
+  }
+  className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+  renderCustomHeader={({
+    date,
+    changeYear,
+    changeMonth
+  }) => {
 
-            renderCustomHeader={({
-              date,
-              changeYear,
-              changeMonth
-            }) => {
+    const currentYear =
+      date.getFullYear();
 
-  const currentYear = date.getFullYear();
+    const currentMonth =
+      date.getMonth();
 
-  const months = [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember'
-  ];
-
-  // BULAN VALID DI TAHUN INI
-  const validMonthIndexes = months
-    .map((_, index) => {
-
-      const isValid = availableMonths.has(
-        `${currentYear}-${index}`
+    const currentPosition =
+      availablePeriods.findIndex(
+        (p) =>
+          p.year === currentYear &&
+          p.month === currentMonth
       );
 
-      return isValid
-        ? index
-        : null;
+    const prevPeriod =
+      availablePeriods[
+        currentPosition - 1
+      ];
 
-    })
-    .filter((v) => v !== null);
+    const nextPeriod =
+      availablePeriods[
+        currentPosition + 1
+      ];
 
-  // NAMA BULAN VALID
-  const validMonths =
-    validMonthIndexes.map(
-      (index) => months[index]
-    );
+    const monthsInYear =
+      availablePeriods.filter(
+        (p) =>
+          p.year === currentYear
+      );
 
-  // POSISI BULAN SEKARANG
-  const currentMonthIndex =
-    date.getMonth();
+    return (
 
-  const currentPosition =
-    validMonthIndexes.indexOf(
-      currentMonthIndex
-    );
+      <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
 
-  // BULAN SEBELUM & SESUDAH
-  const prevMonth =
-    validMonthIndexes[
-      currentPosition - 1
-    ];
+        <button
+          type="button"
+          disabled={!prevPeriod}
+          onClick={() => {
 
-  const nextMonth =
-    validMonthIndexes[
-      currentPosition + 1
-    ];
-
-  return (
-
-    <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
-
-      {/* PREV */}
-      <button
-        type="button"
-        disabled={prevMonth === undefined}
-        onClick={() => {
-
-          if (
-            prevMonth !== undefined
-          ) {
-
-            changeMonth(prevMonth);
-
-          }
-
-        }}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        ←
-      </button>
-
-      {/* CENTER */}
-      <div className="flex items-center gap-2 flex-1">
-
-        {/* MONTH */}
-        <select
-          value={months[currentMonthIndex]}
-          onChange={({
-            target: { value }
-          }) => {
-
-            const monthIndex =
-              months.indexOf(value);
-
-            changeMonth(monthIndex);
-
-          }}
-          className="flex-1 h-10 px-3 rounded-xl border bg-gray-50 text-sm font-semibold outline-none"
-        >
-
-          {validMonths.map((month) => (
-
-            <option
-              key={month}
-              value={month}
-            >
-              {month}
-            </option>
-
-          ))}
-
-        </select>
-
-        {/* YEAR */}
-        <select
-          value={currentYear}
-          onChange={({
-            target: { value }
-          }) => {
+            if (!prevPeriod) return;
 
             changeYear(
-              Number(value)
+              prevPeriod.year
+            );
+
+            changeMonth(
+              prevPeriod.month
             );
 
           }}
-          className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50 text-sm font-semibold outline-none"
+          className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
         >
+          ←
+        </button>
 
-          {availableYears.map((year) => (
+        <div className="flex gap-2 flex-1">
 
-            <option
-              key={year}
-              value={year}
-            >
-              {year}
-            </option>
+          <select
+            value={currentMonth}
+            onChange={(e) => {
 
-          ))}
+              changeMonth(
+                Number(
+                  e.target.value
+                )
+              );
 
-        </select>
+            }}
+            className="flex-1 h-10 px-3 rounded-xl border bg-gray-50"
+          >
+
+            {monthsInYear.map(
+              (p) => (
+
+                <option
+                  key={`${p.year}-${p.month}`}
+                  value={p.month}
+                >
+                  {months[p.month]}
+                </option>
+
+              )
+            )}
+
+          </select>
+
+          <select
+            value={currentYear}
+            onChange={(e) => {
+
+              const year =
+                Number(
+                  e.target.value
+                );
+
+              const firstMonth =
+                availablePeriods.find(
+                  (p) =>
+                    p.year === year
+                );
+
+              changeYear(year);
+
+              if (firstMonth) {
+
+                changeMonth(
+                  firstMonth.month
+                );
+
+              }
+
+            }}
+            className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50"
+          >
+
+            {availableYears.map(
+              (year) => (
+
+                <option
+                  key={year}
+                  value={year}
+                >
+                  {year}
+                </option>
+
+              )
+            )}
+
+          </select>
+
+        </div>
+
+        <button
+          type="button"
+          disabled={!nextPeriod}
+          onClick={() => {
+
+            if (!nextPeriod) return;
+
+            changeYear(
+              nextPeriod.year
+            );
+
+            changeMonth(
+              nextPeriod.month
+            );
+
+          }}
+          className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
+        >
+          →
+        </button>
 
       </div>
 
-      {/* NEXT */}
-      <button
-        type="button"
-        disabled={nextMonth === undefined}
-        onClick={() => {
+    );
 
-          if (
-            nextMonth !== undefined
-          ) {
-
-            changeMonth(nextMonth);
-
-          }
-
-        }}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        →
-      </button>
-
-    </div>
-
-  );
-
-}}
-          />
+  }}
+/>
 
         </div>
 
