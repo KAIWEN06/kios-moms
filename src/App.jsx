@@ -309,10 +309,6 @@ function App() {
         if (error)
           throw error;
 
-        toast.success(
-          "Status menu berhasil diperbarui"
-        );
-
       } catch (error) {
 
         console.error(

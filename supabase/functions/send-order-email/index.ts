@@ -106,7 +106,7 @@ const {
     .join("");
 
       const baseUrl =
-  'http://localhost:5173';
+  'https://kios-moms.vercel.app';
 
 const statusUrl =
   `${baseUrl}/status-pesanan?token=${access_token}`;
