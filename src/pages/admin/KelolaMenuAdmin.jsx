@@ -92,6 +92,76 @@ const KelolaMenuAdmin = ({
 
     try {
 
+      // =========================
+  // TAMBAH MENU
+  // =========================
+
+  const handleUpload = async () => {
+
+    // VALIDASI
+    if (!form.nama || !form.harga || !file) {
+      toast.error('Isi semua data termasuk gambar');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. UPLOAD GAMBAR
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `menu/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('kios_moms')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. GET URL GAMBAR
+      const { data: { publicUrl } } = supabase.storage
+        .from('kios_moms')
+        .getPublicUrl(filePath);
+
+      // 3. SIMPAN KE DATABASE
+      const { error: insertError } = await supabase
+        .from('menu')
+        .insert([{
+          nama: form.nama,
+          harga: parseInt(form.harga),
+          gambar: publicUrl,
+          status: 'aktif'
+        }]);
+
+      if (insertError) throw insertError;
+
+      // REFRESH DATA & TOAST SAKSES
+      fetchMenu();
+      toast.success('Menu berhasil ditambahkan');
+
+      /* =====================================================
+         PROSES RESET FORM (TAMBAHKAN KODE INI)
+      ===================================================== */
+      setForm({
+        nama: '',
+        harga: ''
+      });
+      setFile(null);
+
+      // Reset tampilan nama file pada tag input file HTML
+      const fileInput = document.getElementById('menu-file-input');
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal menambahkan menu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
       // FILE NAME
       const fileName =
         `${Date.now()}_${file.name}`;
@@ -434,6 +504,7 @@ const KelolaMenuAdmin = ({
 
           {/* NAMA */}
           <input
+            id="menu-file-input"
             type="text"
             value={form.nama}
             onChange={(e) =>
@@ -449,6 +520,7 @@ const KelolaMenuAdmin = ({
 
           {/* HARGA */}
           <input
+            id="menu-file-input"
             type="number"
             value={form.harga}
             onChange={(e) =>
@@ -466,6 +538,7 @@ const KelolaMenuAdmin = ({
           <div className="md:col-span-2">
 
             <input
+              id="menu-file-input"
               id="upload-file"
               type="file"
               onChange={(e) => {
