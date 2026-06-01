@@ -240,10 +240,6 @@ const availablePeriods = useMemo(() => {
                 (p) => p.year === currentYear
               );
 
-              const subtotal =
-              Number(i.harga || 0) *
-              Number(i.qty || 0);
-
               return (
                 <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
                   {/* Tombol ke bulan sebelumnya */}
@@ -372,9 +368,9 @@ const availablePeriods = useMemo(() => {
                       parsedItems.map((i, iIdx) => (
                         <li key={`${i.nama}-${iIdx}`} className="text-sm">
                           <span className="font-semibold text-gray-800">{i.nama}</span> x {i.qty}
-                            <span className="ml-2 text-gray-500">
-                              - Rp {subtotal.toLocaleString('id-ID')}
-                            </span>
+                          <span className="ml-2 text-gray-500">
+                            - Rp {(Number(i.harga || 0) * Number(i.qty || 0)).toLocaleString('id-ID')}
+                          </span>
                         </li>
                       ))
                     ) : (
