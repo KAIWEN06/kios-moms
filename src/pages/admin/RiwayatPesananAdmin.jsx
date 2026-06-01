@@ -57,7 +57,12 @@ const RiwayatPesanan = () => {
 
       if (error) throw error;
 
-      console.log('DATA HISTORY', data);
+      console.table(
+  data.map(item => ({
+    id: item.id,
+    created_at: item.created_at
+  }))
+);
 
       setHistoryOrders(data || []);
     } catch (error) {
@@ -116,17 +121,6 @@ const availablePeriods = useMemo(() => {
       return a.month - b.month;
 
     });
-
-  console.log(
-    'AVAILABLE PERIODS FINAL',
-    result
-  );
-
-  console.log(
-    'LAST 5 PERIODS',
-    result.slice(-5)
-  );
-
   return result;
 
 }, [historyOrders]);
