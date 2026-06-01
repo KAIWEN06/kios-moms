@@ -89,7 +89,6 @@ const RiwayatPesanan = () => {
       });
     });
 
-    // Cari yang unik, lalu urutkan dari terlama ke terbaru
     return periods
       .filter(
         (value, index, self) =>
@@ -111,12 +110,16 @@ const RiwayatPesanan = () => {
     ].sort((a, b) => a - b);
   }, [availablePeriods]);
 
-  // Rentang Min dan Max Date berdasarkan data riil agar user tidak tersesat ke tahun/bulan kosong
+  // FIX UTAMA: Paksa batas maxDate berada di ujung akhir hari (23:59:59) tanggal tersebut
   const minMaxDates = useMemo(() => {
     if (historyOrders.length === 0) return { min: null, max: null };
-    // Karena query di-order descending, data terakhir (terbaru) ada di indeks 0, terlama di indeks akhir
+    
     const minDate = new Date(historyOrders[historyOrders.length - 1].created_at);
+    minDate.setHours(0, 0, 0, 0);
+
     const maxDate = new Date(historyOrders[0].created_at);
+    maxDate.setHours(23, 59, 59, 999); // Mengamankan agar tanggal 1 Juni penuh tercover kalender
+    
     return { min: minDate, max: maxDate };
   }, [historyOrders]);
 
@@ -190,116 +193,95 @@ const RiwayatPesanan = () => {
             popperClassName="z-50"
             popperPlacement="bottom-end"
             
-            // Mengunci tanggal, bulan, dan tahun luar batas data agar tidak bisa di-klik
             filterDate={isDateAvailable}
             minDate={minMaxDates.min}
             maxDate={minMaxDates.max}
             
-            highlightDates={historyOrders.map((o) => new Date(o.created_at))}
             className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
             
-renderCustomHeader={({
-  date,
-  changeYear,
-  changeMonth
-}) => {
-  const currentYear = date.getFullYear();
-  const currentMonth = date.getMonth();
+            renderCustomHeader={({
+              date,
+              changeYear,
+              changeMonth,
+              decreaseMonth,
+              increaseMonth,
+              prevMonthButtonDisabled,
+              nextMonthButtonDisabled
+            }) => {
+              const currentYear = date.getFullYear();
+              const currentMonth = date.getMonth();
 
-  // 1. AMANKAN JIKA DATA BELUM SELESAI FOMAT / LOADING
-  if (availablePeriods.length === 0) {
-    return <div className="p-3 text-center text-sm text-gray-500">Memuat periode...</div>;
-  }
+              // Ambil daftar bulan yang valid hanya untuk tahun yang sedang aktif di UI kalender
+              const monthsInSelectedYear = availablePeriods.filter(
+                (p) => p.year === currentYear
+              );
 
-  const currentPosition = availablePeriods.findIndex(
-    (p) => p.year === currentYear && p.month === currentMonth
-  );
+              return (
+                <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
+                  {/* Tombol ke bulan sebelumnya */}
+                  <button
+                    type="button"
+                    disabled={prevMonthButtonDisabled}
+                    onClick={decreaseMonth}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
+                  >
+                    ←
+                  </button>
 
-  const prevPeriod = availablePeriods[currentPosition - 1];
-  const nextPeriod = availablePeriods[currentPosition + 1];
+                  <div className="flex gap-2 flex-1">
+                    {/* Dropdown Bulan Berdata */}
+                    <select
+                      value={currentMonth}
+                      onChange={(e) => {
+                        changeMonth(Number(e.target.value));
+                      }}
+                      className="flex-1 h-10 px-3 rounded-xl border bg-gray-50"
+                    >
+                      {monthsInSelectedYear.map((p) => (
+                        <option key={`${p.year}-${p.month}`} value={p.month}>
+                          {months[p.month]}
+                        </option>
+                      ))}
+                    </select>
 
-  const monthsInYear = availablePeriods.filter(
-    (p) => p.year === currentYear
-  );
+                    {/* Dropdown Tahun Berdata */}
+                    <select
+                      value={currentYear}
+                      onChange={(e) => {
+                        const year = Number(e.target.value);
+                        const firstMonth = availablePeriods.find((p) => p.year === year);
+                        changeYear(year);
+                        if (firstMonth) {
+                          changeMonth(firstMonth.month);
+                        }
+                      }}
+                      className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50"
+                    >
+                      {availableYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-  // 2. JIKA BULAN JUNI BELUM TERDAFTAR DI BULAN-BULAN TAHUN INI, 
-  // PAKSA TETAP TAMPILKAN BULAN JUNI AGAR USER BISA MEMILIHNYA
-  const isCurrentMonthIncluded = monthsInYear.some(p => p.month === currentMonth);
-  if (!isCurrentMonthIncluded && historyOrders.length > 0) {
-    monthsInYear.push({ year: currentYear, month: currentMonth });
-    monthsInYear.sort((a, b) => a.month - b.month);
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-2 px-3 py-3 border-b bg-white rounded-t-2xl">
-      <button
-        type="button"
-        disabled={!prevPeriod}
-        onClick={() => {
-          if (!prevPeriod) return;
-          changeYear(prevPeriod.year);
-          changeMonth(prevPeriod.month);
-        }}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
-      >
-        ←
-      </button>
-
-      <div className="flex gap-2 flex-1">
-        <select
-          value={currentMonth}
-          onChange={(e) => {
-            changeMonth(Number(e.target.value));
-          }}
-          className="flex-1 h-10 px-3 rounded-xl border bg-gray-50"
-        >
-          {monthsInYear.map((p) => (
-            <option key={`${p.year}-${p.month}`} value={p.month}>
-              {months[p.month]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={currentYear}
-          onChange={(e) => {
-            const year = Number(e.target.value);
-            const firstMonth = availablePeriods.find((p) => p.year === year);
-            changeYear(year);
-            if (firstMonth) {
-              changeMonth(firstMonth.month);
-            }
-          }}
-          className="w-[100px] h-10 px-3 rounded-xl border bg-gray-50"
-        >
-          {availableYears.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        type="button"
-        disabled={!nextPeriod}
-        onClick={() => {
-          if (!nextPeriod) return;
-          changeYear(nextPeriod.year);
-          changeMonth(nextPeriod.month);
-        }}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
-      >
-        →
-      </button>
-    </div>
-  );
-}}
+                  {/* Tombol ke bulan selanjutnya */}
+                  <button
+                    type="button"
+                    disabled={nextMonthButtonDisabled}
+                    onClick={increaseMonth}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-30"
+                  >
+                    →
+                  </button>
+                </div>
+              );
+            }}
           />
         </div>
       </div>
 
-      {/* EMPTY & LIST ORDER */}
+      {/* LIST ORDER */}
       {filteredOrders.length === 0 ? (
         <div className="bg-white p-20 rounded-3xl text-center border-2 border-dashed">
           <p className="text-gray-400 italic">Belum ada riwayat pesanan.</p>
