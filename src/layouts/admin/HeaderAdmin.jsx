@@ -175,9 +175,9 @@ const HeaderAdmin = () => {
           <div
             className="
             hidden
-            lg:flex
+            xl:flex
             items-center
-            gap-8
+            gap-6
             "
           >
 
@@ -185,7 +185,7 @@ const HeaderAdmin = () => {
               className="
               flex
               items-center
-              gap-8
+              gap-6
               "
             >
 
@@ -207,7 +207,7 @@ const HeaderAdmin = () => {
                           isActive
                         }) =>
                           `
-                          text-[16px]
+                          text-[15px]
                           font-bold
                           transition-all
                           duration-300
@@ -265,7 +265,7 @@ const HeaderAdmin = () => {
               setOpenMenu(!openMenu)
             }
             className="
-            lg:hidden
+            xl:hidden
             w-14
             h-14
             rounded-2xl

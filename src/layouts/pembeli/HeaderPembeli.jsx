@@ -136,7 +136,7 @@ const HeaderPembeli = () => {
           <ul
             className="
             hidden
-            lg:flex
+            xl:flex
             items-center
             gap-8
             "
@@ -185,7 +185,7 @@ const HeaderPembeli = () => {
               setOpenMenu(!openMenu)
             }
             className="
-            lg:hidden
+            xl:hidden
             w-14
             h-14
             rounded-2xl
