@@ -446,10 +446,6 @@ const HeaderAdmin = () => {
             hover:bg-red-600
             transition-all
             duration-300
-            bg-red-500
-            hover:bg-red-600
-            transition-all
-            duration-300
             "
           >
 

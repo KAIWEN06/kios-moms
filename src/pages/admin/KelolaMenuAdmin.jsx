@@ -835,7 +835,7 @@ const KelolaMenuAdmin = ({
             }`}
           >
 
-            Prev
+            Sebelumnya
 
           </button>
 
@@ -864,7 +864,7 @@ const KelolaMenuAdmin = ({
             }`}
           >
 
-            Next
+            Berikutnya
 
           </button>
 
