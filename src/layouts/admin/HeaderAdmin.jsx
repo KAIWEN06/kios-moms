@@ -441,6 +441,11 @@ const HeaderAdmin = () => {
             rounded-2xl
             font-black
             text-lg
+            text-white
+            bg-red-500
+            hover:bg-red-600
+            transition-all
+            duration-300
             bg-red-500
             hover:bg-red-600
             transition-all
