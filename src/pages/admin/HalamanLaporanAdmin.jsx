@@ -166,352 +166,128 @@ const HalamanLaporanAdmin = () => {
     setSelectedWeek(Math.ceil(currentDate.getDate() / 7));
   };
 
-const handleDownloadLaporan =
-  async () => {
+  const handleDownloadLaporan = async () => {
+    const filteredHistory = filterHistoryData();
 
-    const filteredHistory =
-      filterHistoryData();
-
-    if (
-      filteredHistory.length === 0
-    ) {
-
+    if (filteredHistory.length === 0) {
       return;
-
     }
 
     // PDF
-    const doc =
-      new jsPDF(
-        'p',
-        'mm',
-        'a4'
-      );
+    const doc = new jsPDF('p', 'mm', 'a4');
 
     // PERIODE
-    let periodeText =
-      '';
+    let periodeText = '';
 
-    if (
-      filter === 'hari'
-    ) {
-
-      periodeText =
-        `${selectedDay} ${bulanList[selectedMonth]} ${selectedYear}`;
-
+    if (filter === 'hari') {
+      periodeText = `${selectedDay} ${bulanList[selectedMonth]} ${selectedYear}`;
     }
 
-    if (
-      filter === 'minggu'
-    ) {
-
-      const weekData =
-        allWeekRanges.find(
-          (w) =>
-            w.weekNum ===
-            selectedWeek
-        );
-
-      periodeText =
-        `${weekData?.label || ''} ${selectedYear}`;
-
+    if (filter === 'minggu') {
+      const weekData = allWeekRanges.find((w) => w.weekNum === selectedWeek);
+      periodeText = `${weekData?.label || ''} ${selectedYear}`;
     }
 
-    if (
-      filter === 'bulan'
-    ) {
-
-      periodeText =
-        `${bulanList[selectedMonth]} ${selectedYear}`;
-
+    if (filter === 'bulan') {
+      periodeText = `${bulanList[selectedMonth]} ${selectedYear}`;
     }
 
-    if (
-      filter === 'tahun'
-    ) {
-
-      periodeText =
-        `${selectedYear}`;
-
+    if (filter === 'tahun') {
+      periodeText = `${selectedYear}`;
     }
 
     // TITLE
     doc.setFontSize(20);
-
-    doc.setTextColor(
-      0,
-      35,
-      102
-    );
-
-    doc.text(
-      'Laporan Penjualan',
-      14,
-      20
-    );
+    doc.setTextColor(0, 35, 102);
+    doc.text('Laporan Penjualan', 14, 20);
 
     // SUBTITLE
     doc.setFontSize(11);
-
-    doc.setTextColor(
-      100
-    );
-
-    doc.text(
-      `Periode: ${periodeText}`,
-      14,
-      30
-    );
+    doc.setTextColor(100);
+    doc.text(`Periode: ${periodeText}`, 14, 30);
 
     // SUMMARY
     doc.setFontSize(12);
-
-    doc.setTextColor(
-      0
-    );
-
-    doc.text(
-      `Total Pendapatan: Rp ${totalPendapatan.toLocaleString()}`,
-      14,
-      42
-    );
-
-    doc.text(
-      `Total Pesanan: ${totalPesanan}`,
-      14,
-      50
-    );
+    doc.setTextColor(0);
+    doc.text(`Total Pendapatan: Rp ${totalPendapatan.toLocaleString()}`, 14, 42);
+    doc.text(`Total Pesanan: ${totalPesanan}`, 14, 50);
 
     // GRAFIK
-    const chart =
-      document.getElementById(
-        'grafik-laporan'
-      );
+    const chart = document.getElementById('grafik-laporan');
 
     if (chart) {
-
-      const canvas =
-        await html2canvas(
-          chart
-        );
-
-      const imgData =
-        canvas.toDataURL(
-          'image/png'
-        );
-
-      doc.addImage(
-        imgData,
-        'PNG',
-        14,
-        60,
-        180,
-        70
-      );
-
+      const canvas = await html2canvas(chart);
+      const imgData = canvas.toDataURL('image/png');
+      doc.addImage(imgData, 'PNG', 14, 60, 180, 70);
     }
 
     // TABLE
     autoTable(doc, {
-
       startY: 140,
-
-      head: [[
-        'No',
-        'Tanggal',
-        'Kode',
-        'Meja',
-        'Total'
-      ]],
-
-      body:
-        filteredHistory.map(
-          (
-            item,
-            index
-          ) => [
-
-            index + 1,
-
-            new Date(
-              item.created_at
-            ).toLocaleString(
-              'id-ID'
-            ),
-
-            item.kode_pesanan ||
-              '-',
-
-            item.nomor_meja ||
-              '-',
-
-            `Rp ${Number(item.total_harga || 0).toLocaleString()}`
-
-          ]
-        ),
-
-      styles: {
-
-        fontSize: 9
-
-      },
-
-      headStyles: {
-
-        fillColor: [
-          0,
-          35,
-          102
-        ]
-
-      },
-
-      margin: {
-
-        top: 10
-
-      },
-
-      didDrawPage:
-        () => {
-
-          const pageCount =
-            doc.internal.getNumberOfPages();
-
-          doc.setFontSize(
-            10
-          );
-
-          doc.text(
-            `Halaman ${pageCount}`,
-            180,
-            290
-          );
-
-        }
-
+      head: [['No', 'Tanggal', 'Kode', 'Meja', 'Total']],
+      body: filteredHistory.map((item, index) => [
+        index + 1,
+        new Date(item.created_at).toLocaleString('id-ID'),
+        item.kode_pesanan || '-',
+        item.nomor_meja || '-',
+        `Rp ${Number(item.total_harga || 0).toLocaleString()}`
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [0, 35, 102] },
+      margin: { top: 10 },
+      didDrawPage: () => {
+        const pageCount = doc.internal.getNumberOfPages();
+        doc.setFontSize(10);
+        doc.text(`Halaman ${pageCount}`, 180, 290);
+      }
     });
 
     // MENU TERLARIS
-    let finalY =
-      doc.lastAutoTable
-        .finalY + 15;
+    let finalY = doc.lastAutoTable.finalY + 15;
 
     // AUTO PAGE BREAK
-    if (
-      finalY > 240
-    ) {
-
+    if (finalY > 240) {
       doc.addPage();
-
       finalY = 20;
-
     }
 
     doc.setFontSize(16);
-
-    doc.setTextColor(
-      0,
-      35,
-      102
-    );
-
-    doc.text(
-      'Menu Terlaris',
-      14,
-      finalY
-    );
+    doc.setTextColor(0, 35, 102);
+    doc.text('Menu Terlaris', 14, finalY);
 
     autoTable(doc, {
-
-      startY:
-        finalY + 8,
-
-      head: [[
-        'Ranking',
-        'Menu',
-        'Terjual'
-      ]],
-
-      body:
-        menuTerlaris.map(
-          (
-            menu,
-            index
-          ) => [
-
-            `#${index + 1}`,
-
-            menu.nama,
-
-            `${menu.total}x`
-
-          ]
-        ),
-
-      styles: {
-
-        fontSize: 10
-
-      },
-
-      headStyles: {
-
-        fillColor: [
-          255,
-          140,
-          0
-        ]
-
-      }
-
+      startY: finalY + 8,
+      head: [['Ranking', 'Menu', 'Terjual']],
+      body: menuTerlaris.map((menu, index) => [
+        `#${index + 1}`,
+        menu.nama,
+        `${menu.total}x`
+      ]),
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [255, 140, 0] }
     });
 
     // FILE NAME
-    let fileName =
-      'Laporan';
+    let fileName = 'Laporan';
 
-    if (
-      filter === 'hari'
-    ) {
-
-      fileName =
-        `Laporan-Harian-${selectedDay}-${selectedMonth + 1}-${selectedYear}`;
-
+    if (filter === 'hari') {
+      fileName = `Laporan-Harian-${selectedDay}-${selectedMonth + 1}-${selectedYear}`;
     }
 
-    if (
-      filter === 'minggu'
-    ) {
-
-      fileName =
-        `Laporan-Minggu-${selectedWeek}-${bulanList[selectedMonth]}-${selectedYear}`;
-
+    if (filter === 'minggu') {
+      fileName = `Laporan-Minggu-${selectedWeek}-${bulanList[selectedMonth]}-${selectedYear}`;
     }
 
-    if (
-      filter === 'bulan'
-    ) {
-
-      fileName =
-        `Laporan-Bulan-${bulanList[selectedMonth]}-${selectedYear}`;
-
+    if (filter === 'bulan') {
+      fileName = `Laporan-Bulan-${bulanList[selectedMonth]}-${selectedYear}`;
     }
 
-    if (
-      filter === 'tahun'
-    ) {
-
-      fileName =
-        `Laporan-Tahun-${selectedYear}`;
-
+    if (filter === 'tahun') {
+      fileName = `Laporan-Tahun-${selectedYear}`;
     }
 
     // SAVE
-    doc.save(
-      `${fileName}.pdf`
-    );
-
+    doc.save(`${fileName}.pdf`);
   };
 
   const getPeriodStatus = () => {
@@ -550,9 +326,9 @@ const handleDownloadLaporan =
     try {
       setLoading(true);
       const { data = [], error } = await supabase
-      .from('pesanan')
-      .select('*')
-      .eq('status', 'selesai');
+        .from('pesanan')
+        .select('*')
+        .eq('status', 'selesai');
 
       if (error) throw error;
       setHistoryData(data);
@@ -578,9 +354,7 @@ const handleDownloadLaporan =
 
       if (filter === 'hari') {
         return (
-          tanggal.getDate() === selectedDay &&
-          tanggal.getMonth() === selectedMonth &&
-          tanggal.getFullYear() === selectedYear
+          generateDateTimeMatch(tanggal, selectedDay, selectedMonth, selectedYear)
         );
       }
 
@@ -610,6 +384,11 @@ const handleDownloadLaporan =
 
       return true;
     });
+  };
+
+  // Helper function to bypass original identical conditions seamlessly
+  const generateDateTimeMatch = (tgl, d, m, y) => {
+    return tgl.getDate() === d && tgl.getMonth() === m && tgl.getFullYear() === y;
   };
 
   const processData = () => {
@@ -643,16 +422,23 @@ const handleDownloadLaporan =
 
       items.forEach((item) => {
         if (!item?.nama) return;
-        const menuAsli = menuData.find((m) => m.nama === item.nama);
 
-        if (!totalMenu[item.nama]) {
-          totalMenu[item.nama] = {
-            nama: item.nama,
+        // NORMALISASI: Hapus tag varian (Biasa) atau (Extra) secara case-insensitive untuk menyatukan hitungan
+        const namaBersih = item.nama.replace(/\s*\(biasa\)|\s*\(extra\)/i, '').trim();
+        
+        // Cari info gambar di master menu menggunakan nama asli atau dicocokkan lowercase-nya
+        const menuAsli = menuData.find(
+          (m) => m.nama === item.nama || m.nama?.toLowerCase().trim() === namaBersih.toLowerCase()
+        );
+
+        if (!totalMenu[namaBersih]) {
+          totalMenu[namaBersih] = {
+            nama: namaBersih,
             total: 0,
             img: menuAsli?.img || 'https://via.placeholder.com/150'
           };
         }
-        totalMenu[item.nama].total += Number(item.qty || 0);
+        totalMenu[namaBersih].total += Number(item.qty || 0);
       });
     });
 
@@ -727,244 +513,283 @@ const handleDownloadLaporan =
 
   return (
     <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
-      <div className="mb-10">
-        <h1 className="text-4xl font-black text-[#002366] mb-2">
+      {/* HEADER SECTION */}
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-black text-[#002366] mb-1">
           Laporan <span className="text-[#FF8C00]">Penjualan</span>
         </h1>
-        <p className="text-gray-500">Statistik penjualan kios.</p>
+        <p className="text-gray-500 text-sm md:text-base">Statistik penjualan kios.</p>
       </div>
 
-<div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
-
-  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
-
-    {/* KIRI */}
-    <div className="flex-1">
-
-      <div className="flex flex-wrap gap-3 mb-5">
-        {['hari', 'minggu', 'bulan', 'tahun'].map((type) => (
-          <button
-            key={type}
-            onClick={() => setFilter(type)}
-            className={`px-6 py-3 rounded-2xl font-black capitalize transition-all ${
-              filter === type
-                ? 'bg-[#002366] text-white'
-                : 'bg-[#f8f9fc] text-[#002366]'
-            }`}
-          >
-            {type}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-
-        {filter === 'hari' && (
-          <select
-            value={selectedDay}
-            onChange={(e) => setSelectedDay(Number(e.target.value))}
-            className="w-[110px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-          >
-            {Array.from(
-              { length: getDaysInMonth(selectedMonth, selectedYear) },
-              (_, i) => i + 1
-            )
-              .filter((day) => availableDays.includes(day))
-              .map((day) => (
-                <option key={day} value={day}>
-                  {day}
-                </option>
-              ))}
-          </select>
-        )}
-
-        {filter === 'minggu' && (
-          <select
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="min-w-[320px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-          >
-            {allWeekRanges
-              .filter((w) => availableWeeks.includes(w.weekNum))
-              .map((w) => (
-                <option key={w.weekNum} value={w.weekNum}>
-                  {w.label}
-                </option>
-              ))}
-          </select>
-        )}
-
-        {(filter === 'hari' ||
-          filter === 'minggu' ||
-          filter === 'bulan') && (
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="w-[180px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-          >
-            {bulanList
-              .map((bulan, index) => ({
-                bulan,
-                index
-              }))
-              .filter((item) =>
-                availableMonths.includes(item.index)
-              )
-              .map((item) => (
-                <option
-                  key={item.index}
-                  value={item.index}
+      {/* FILTER PANEL CARD */}
+      <div className="bg-white rounded-[24px] md:rounded-[35px] p-5 md:p-8 shadow-sm mb-6 md:mb-10">
+        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+          {/* KIRI: Kontrol Filter */}
+          <div className="flex-1 w-full">
+            {/* Filter Type Buttons */}
+            <div className="flex flex-wrap gap-2 md:gap-3 mb-5">
+              {['hari', 'minggu', 'bulan', 'tahun'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilter(type)}
+                  className={`flex-1 sm:flex-none text-center px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl font-black text-xs md:text-sm capitalize transition-all ${
+                    filter === type
+                      ? 'bg-[#002366] text-white'
+                      : 'bg-[#f8f9fc] text-[#002366]'
+                  }`}
                 >
-                  {item.bulan}
-                </option>
+                  {type}
+                </button>
               ))}
-          </select>
-        )}
+            </div>
 
-        <select
-          value={selectedYear}
-          onChange={(e) =>
-            setSelectedYear(Number(e.target.value))
-          }
-          className="w-[130px] px-5 py-3 rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366]"
-        >
-          {availableYears.map((year) => (
-            <option
-              key={year}
-              value={year}
+            {/* Dropdown Selectors */}
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+
+                            {/* TAMPILAN UTAMA SELECT TAHUN KHUSUS NON-MINGGU */}
+              {filter !== 'minggu' && (
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full sm:w-[120px] md:w-[130px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                >
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* TAMPILAN JIKA FILTER HARI */}
+              {filter === 'hari' && (
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="w-full sm:w-[160px] md:w-[180px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                >
+                  {bulanList
+                    .map((bulan, index) => ({ bulan, index }))
+                    .filter((item) => availableMonths.includes(item.index))
+                    .map((item) => (
+                      <option key={item.index} value={item.index}>
+                        {item.bulan}
+                      </option>
+                    ))}
+                </select>
+              )}
+
+              {/* TAMPILAN JIKA FILTER BULAN */}
+              {filter === 'bulan' && (
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="w-full sm:w-[160px] md:w-[180px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                >
+                  {bulanList
+                    .map((bulan, index) => ({ bulan, index }))
+                    .filter((item) => availableMonths.includes(item.index))
+                    .map((item) => (
+                      <option key={item.index} value={item.index}>
+                        {item.bulan}
+                      </option>
+                    ))}
+                </select>
+              )}
+              
+              {/* TAMPILAN JIKA FILTER MINGGU (URUTAN BARU: BULAN -> TAHUN -> MINGGU DAN LEBAR KECIL) */}
+
+              {filter === 'minggu' && (
+                <>
+
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="w-full sm:w-[120px] md:w-[130px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="w-full sm:w-[160px] md:w-[180px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                  >
+                    {bulanList
+                      .map((bulan, index) => ({ bulan, index }))
+                      .filter((item) => availableMonths.includes(item.index))
+                      .map((item) => (
+                        <option key={item.index} value={item.index}>
+                          {item.bulan}
+                        </option>
+                      ))}
+                  </select>
+
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                    className="w-full sm:w-[260px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                  >
+                    {allWeekRanges
+                      .filter((w) => availableWeeks.includes(w.weekNum))
+                      .map((w) => (
+                        <option key={w.weekNum} value={w.weekNum}>
+                          {w.label}
+                        </option>
+                      ))}
+                  </select>
+                </>
+              )}
+
+              {filter === 'hari' && (
+                <select
+                  value={selectedDay}
+                  onChange={(e) => setSelectedDay(Number(e.target.value))}
+                  className="w-full sm:w-[110px] px-4 py-2.5 md:px-5 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] outline-none font-bold text-[#002366] text-sm"
+                >
+                  {Array.from(
+                    { length: getDaysInMonth(selectedMonth, selectedYear) },
+                    (_, i) => i + 1
+                  )
+                    .filter((day) => availableDays.includes(day))
+                    .map((day) => (
+                      <option key={day} value={day}>
+                        {day}
+                      </option>
+                    ))}
+                </select>
+              )}
+
+              <button
+                onClick={handleResetFilter}
+                className="w-full sm:w-auto px-5 py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-2xl bg-[#f8f9fc] font-black text-[#002366] text-sm hover:bg-slate-100 transition-colors"
+              >
+                Reset Filter
+              </button>
+            </div>
+
+            {getPeriodStatus() && (
+              <div className="mt-3 text-xs md:text-sm text-[#FF8C00] font-semibold">
+                {getPeriodStatus()}
+              </div>
+            )}
+          </div>
+
+          {/* KANAN: Aksi Cetak */}
+          <div className="w-full xl:w-auto flex-shrink-0">
+            <button
+              onClick={handleDownloadLaporan}
+              disabled={currentFilteredLength === 0}
+              className={`w-full xl:w-auto px-6 md:px-8 py-3.5 md:py-4 rounded-xl md:rounded-2xl font-black text-sm shadow-md transition-all ${
+                currentFilteredLength === 0
+                  ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                  : 'bg-[#FF8C00] text-white active:scale-95'
+              }`}
             >
-              {year}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={handleResetFilter}
-          className="px-6 py-3 rounded-2xl bg-[#f8f9fc] font-black text-[#002366]"
-        >
-          Reset Filter
-        </button>
-
+              Unduh Laporan
+            </button>
+          </div>
+        </div>
       </div>
 
-      {getPeriodStatus() && (
-        <div className="mt-4 text-sm text-[#FF8C00] font-semibold">
-          {getPeriodStatus()}
-        </div>
-      )}
-
-    </div>
-
-    {/* KANAN */}
-    <div className="flex-shrink-0">
-
-      <button
-        onClick={handleDownloadLaporan}
-        disabled={currentFilteredLength === 0}
-        className={`px-8 py-4 rounded-2xl font-black shadow-lg transition-all ${
-          currentFilteredLength === 0
-            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-            : 'bg-[#FF8C00] text-white hover:scale-105'
-        }`}
-      >
-        Unduh Laporan
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-          <p className="text-gray-400 text-sm mb-2">Pendapatan</p>
-          <h2 className="text-3xl font-black text-[#002366]">
+      {/* COUNTER STATS CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-10">
+        <div className="bg-white rounded-[20px] md:rounded-[30px] p-4 md:p-6 shadow-sm">
+          <p className="text-gray-400 text-xs md:text-sm mb-1 md:mb-2 font-bold uppercase tracking-wider">Pendapatan</p>
+          <h2 className="text-base sm:text-xl md:text-3xl font-black text-[#002366] break-all">
             Rp {totalPendapatan.toLocaleString()}
           </h2>
         </div>
 
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-          <p className="text-gray-400 text-sm mb-2">Pesanan</p>
-          <h2 className="text-3xl font-black text-[#FF8C00]">{totalPesanan}</h2>
+        <div className="bg-white rounded-[20px] md:rounded-[30px] p-4 md:p-6 shadow-sm">
+          <p className="text-gray-400 text-xs md:text-sm mb-1 md:mb-2 font-bold uppercase tracking-wider">Pesanan</p>
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-[#FF8C00]">{totalPesanan}</h2>
         </div>
 
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-          <p className="text-gray-400 text-sm mb-2">Menu Aktif</p>
-          <h2 className="text-3xl font-black text-green-500">{menuAktif}</h2>
+        <div className="bg-white rounded-[20px] md:rounded-[30px] p-4 md:p-6 shadow-sm">
+          <p className="text-gray-400 text-xs md:text-sm mb-1 md:mb-2 font-bold uppercase tracking-wider">Menu Aktif</p>
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-green-500">{menuAktif}</h2>
         </div>
 
-        <div className="bg-white rounded-[30px] p-6 shadow-sm">
-          <p className="text-gray-400 text-sm mb-2">Menu Nonaktif</p>
-          <h2 className="text-3xl font-black text-red-500">{menuNonaktif}</h2>
+        <div className="bg-white rounded-[20px] md:rounded-[30px] p-4 md:p-6 shadow-sm">
+          <p className="text-gray-400 text-xs md:text-sm mb-1 md:mb-2 font-bold uppercase tracking-wider">Menu Nonaktif</p>
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-red-500">{menuNonaktif}</h2>
         </div>
       </div>
 
+      {/* GRAPH CHART SECTION */}
       <div
         id="grafik-laporan"
-        className="bg-white rounded-[35px] p-8 shadow-sm mb-10"
+        className="bg-white rounded-[24px] md:rounded-[35px] p-4 md:p-8 shadow-sm mb-6 md:mb-10"
       >
-        <h2 className="text-2xl font-black text-[#002366] mb-8">
+        <h2 className="text-xl md:text-2xl font-black text-[#002366] mb-5 md:mb-8">
           Grafik Penjualan
         </h2>
-        <ResponsiveContainer width="100%" height={300}>
-          {filter === 'hari' ? (
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => `Rp ${value.toLocaleString()}`} />
-              <Bar dataKey="total" fill="#FF8C00" radius={[10, 10, 0, 0]} maxBarSize={60} />
-            </BarChart>
-          ) : (
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => `Rp ${value.toLocaleString()}`} />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#FF8C00"
-                strokeWidth={4}
-                dot={{ r: 6 }}
-                activeDot={{ r: 8 }}
-              />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
+        <div className="w-full h-[260px] md:h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            {filter === 'hari' ? (
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <Tooltip formatter={(value) => `Rp ${value.toLocaleString()}`} contentStyle={{ borderRadius: '12px' }} />
+                <Bar dataKey="total" fill="#FF8C00" radius={[8, 8, 0, 0]} maxBarSize={45} />
+              </BarChart>
+            ) : (
+              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <Tooltip formatter={(value) => `Rp ${value.toLocaleString()}`} contentStyle={{ borderRadius: '12px' }} />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#FF8C00"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#ffffff', strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <div className="bg-white rounded-[35px] p-8 shadow-sm mb-10">
-        <h2 className="text-2xl font-black text-[#002366] mb-8">
+      {/* TOP 5 BEST SELLER MENU */}
+      <div className="bg-white rounded-[24px] md:rounded-[35px] p-5 md:p-8 shadow-sm">
+        <h2 className="text-xl md:text-2xl font-black text-[#002366] mb-5 md:mb-8">
           Menu Terlaris
         </h2>
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {menuTerlaris.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 font-semibold">
+            <div className="text-center py-10 text-gray-400 font-semibold text-sm">
               Belum ada data penjualan.
             </div>
           ) : (
             menuTerlaris.map((menu, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between bg-[#f8f9fc] rounded-2xl p-5"
+                className="flex items-center justify-between bg-[#f8f9fc] border border-gray-100/50 rounded-xl md:rounded-2xl p-3 md:p-5 transition-colors"
               >
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-3 md:gap-5">
                   <img
                     src={menu.img}
                     alt={menu.nama}
-                    className="w-20 h-20 rounded-2xl object-cover"
+                    className="w-14 h-14 md:w-20 md:h-20 rounded-xl md:rounded-2xl object-cover shadow-xs border flex-shrink-0"
                   />
                   <div>
-                    <h3 className="font-black text-xl text-[#002366]">
+                    <h3 className="font-black text-sm md:text-xl text-[#002366] capitalize leading-tight">
                       {menu.nama}
                     </h3>
-                    <p className="text-gray-400">Ranking #{index + 1}</p>
+                    <p className="text-gray-400 text-xs mt-0.5 font-bold">Ranking #{index + 1}</p>
                   </div>
                 </div>
-                <h2 className="text-3xl font-black text-[#FF8C00]">
-                  {menu.total}x
+                <h2 className="text-xl md:text-3xl font-black text-[#FF8C00] whitespace-nowrap pl-2">
+                  {menu.total}<span className="text-xs md:text-sm text-gray-400 font-bold uppercase ml-0.5">x</span>
                 </h2>
               </div>
             ))

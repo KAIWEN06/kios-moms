@@ -58,25 +58,12 @@ const KeranjangPembeli = () => {
     };
   }, []);
 
-  const fetchStatusKios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("pengaturan_kios")
-        .select("buka")
-        .eq("id", 1)
-        .single();
-
-      if (error) throw error;
-
-      setKiosBuka(data?.buka ?? true);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
+  /* =====================================================
+     REALTIME KIOS
+  ===================================================== */
   useEffect(() => {
     const channel = supabase
-      .channel("realtime-status-kios")
+      .channel("realtime-kios-keranjang")
       .on(
         "postgres_changes",
         {
@@ -84,8 +71,8 @@ const KeranjangPembeli = () => {
           schema: "public",
           table: "pengaturan_kios"
         },
-        () => {
-          fetchStatusKios();
+        (payload) => {
+          setKiosBuka(payload.new.buka);
         }
       )
       .subscribe();
@@ -95,342 +82,364 @@ const KeranjangPembeli = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!kiosBuka) {
+      localStorage.removeItem("keranjang");
+      setKeranjang([]);
+      toast.error("Kios ditutup. Keranjang Anda dikosongkan.");
+      navigate("/beranda");
+    }
+  }, [kiosBuka, navigate]);
+
   /* =====================================================
-     FETCH MENU
+     FETCH STATUS KIOS
   ===================================================== */
-  const fetchMenu = async () => {
+  const fetchStatusKios = async () => {
     try {
       const { data, error } = await supabase
-        .from("menu")
-        .select("*")
-        .eq("stok", "ada")
-        .eq("is_aktif", true);
-
-      if (error) throw error;
-
-      const availableMenu = data || [];
-      setMenuAktif(availableMenu);
-      validasiKeranjang(availableMenu);
-    } catch (error) {
-      console.log(error);
+        .from("pengaturan_kios")
+        .select("buka")
+        .eq("id", 1)
+        .single();
+      if (!error && data) {
+        setKiosBuka(data.buka);
+      }
+    } catch (e) {
+      console.log(e);
     }
   };
 
   /* =====================================================
-     FETCH KERANJANG
+     FETCH MENU & VALIDASI STOK / VARIAN SECARA REALTIME
   ===================================================== */
-  const fetchKeranjang = () => {
+  const fetchMenu = async () => {
     try {
       setLoading(true);
-      const dataKeranjang = JSON.parse(localStorage.getItem("keranjang")) || [];
-      setKeranjang(dataKeranjang);
-    } catch (error) {
-      console.log(error);
-      toast.error("Gagal memuat keranjang");
+      const { data, error } = await supabase
+        .from("menu")
+        .select("*")
+        .neq("stok", "nonaktif")
+        .eq("is_aktif", true);
+
+      if (error) throw error;
+
+      const currentMenu = data || [];
+      setMenuAktif(currentMenu);
+
+      const localCart = JSON.parse(localStorage.getItem("keranjang")) || [];
+      const menuIds = currentMenu.map((m) => m.id);
+
+      let cartChanged = false;
+
+      const validatedCart = localCart.filter((item) => {
+        const dbItem = currentMenu.find((m) => m.id === item.id);
+
+        if (!dbItem || !menuIds.includes(item.id)) {
+          toast.error(`"${item.nama}" sudah tidak tersedia`);
+          cartChanged = true;
+          return false;
+        }
+
+        if (dbItem.stok === "kosong") {
+          toast.error(`"${item.nama}" telah habis`);
+          cartChanged = true;
+          return false;
+        }
+
+        if (dbItem.stok === "extra_ada" && item.varian === "biasa") {
+          toast.error(`Varian Biasa untuk "${item.nama}" sudah habis`);
+          cartChanged = true;
+          return false;
+        }
+        if (dbItem.stok === "biasa_ada" && item.varian === "extra") {
+          toast.error(`Varian Extra untuk "${item.nama}" sudah habis`);
+          cartChanged = true;
+          return false;
+        }
+
+        return true;
+      });
+
+      const finalCart = validatedCart.map((item) => {
+        const dbItem = currentMenu.find((m) => m.id === item.id);
+        const currentHargaDb = item.varian === "extra" ? dbItem.harga_extra : dbItem.harga_biasa;
+        
+        if (Number(item.harga) !== Number(currentHargaDb)) {
+          cartChanged = true;
+          return {
+            ...item,
+            harga: currentHargaDb,
+            harga_biasa: dbItem.harga_biasa,
+            harga_extra: dbItem.harga_extra
+          };
+        }
+        return item;
+      });
+
+      if (cartChanged) {
+        localStorage.setItem("keranjang", JSON.stringify(finalCart));
+        setKeranjang(finalCart);
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error("Gagal sinkronisasi data menu");
     } finally {
       setLoading(false);
     }
   };
 
   /* =====================================================
-     VALIDASI KERANJANG
+     FETCH LOCAL STORAGE KERANJANG
   ===================================================== */
-  const validasiKeranjang = (availableMenu) => {
+  const fetchKeranjang = () => {
     try {
-      const cart = JSON.parse(localStorage.getItem("keranjang")) || [];
-      const menuIds = availableMenu.map((item) => item.id);
+      const stored = JSON.parse(localStorage.getItem("keranjang")) || [];
+      setKeranjang(stored);
+    } catch (e) {
+      console.log(e);
+    }
+  };
 
-      const invalidItems = cart.filter((item) => !menuIds.includes(item.id));
-
-      if (invalidItems.length > 0) {
-        invalidItems.forEach((item) => {
-          toast.error(`${item.nama} sudah tidak tersedia`);
-        });
+  /* =====================================================
+     OPERASI KONTROL JUMLAH QUANTITY
+  ===================================================== */
+  const tambahQty = (cartKey) => {
+    const updated = keranjang.map((item) => {
+      if (item.cartKey === cartKey) {
+        return { ...item, qty: item.qty + 1 };
       }
-
-      const updatedCart = cart.filter((item) => menuIds.includes(item.id));
-      setKeranjang(updatedCart);
-      localStorage.setItem("keranjang", JSON.stringify(updatedCart));
-    } catch (error) {
-      console.log(error);
-    }
+      return item;
+    });
+    localStorage.setItem("keranjang", JSON.stringify(updated));
+    setKeranjang(updated);
   };
 
-  /* =====================================================
-     VALIDASI MENU
-  ===================================================== */
-  const menuMasihAda = (id) => {
-    return menuAktif.some((item) => item.id === id);
-  };
-
-  /* =====================================================
-     TAMBAH QTY
-  ===================================================== */
-  const tambahQty = (id) => {
-    try {
-      if (!menuMasihAda(id)) {
-        toast.error("Menu sudah tidak tersedia");
-        return;
+  const kurangQty = (cartKey) => {
+    let updated = keranjang.map((item) => {
+      if (item.cartKey === cartKey) {
+        return { ...item, qty: item.qty - 1 };
       }
+      return item;
+    });
 
-      const updated = keranjang.map((item) => {
-        if (item.id === id) {
-          return { ...item, qty: item.qty + 1 };
-        }
-        return item;
-      });
+    updated = updated.filter((item) => item.qty > 0);
+    localStorage.setItem("keranjang", JSON.stringify(updated));
+    setKeranjang(updated);
+  };
 
-      setKeranjang(updated);
-      localStorage.setItem("keranjang", JSON.stringify(updated));
-    } catch (error) {
-      console.log(error);
+  /* PERBAIKAN LOGIKA DISINI: Menyesuaikan notifikasi hapus */
+  const hapusItem = (cartKey, namaItem, varian, harga_extra) => {
+    const updated = keranjang.filter((item) => item.cartKey !== cartKey);
+    localStorage.setItem("keranjang", JSON.stringify(updated));
+    setKeranjang(updated);
+    
+    if (Number(harga_extra) > 0) {
+      toast.success(`"${namaItem} (${varian || "biasa"})" dihapus dari keranjang`);
+    } else {
+      toast.success(`"${namaItem}" dihapus dari keranjang`);
     }
   };
 
   /* =====================================================
-     KURANG QTY
-  ===================================================== */
-  const kurangQty = (id) => {
-    try {
-      let updated = keranjang.map((item) => {
-        if (item.id === id) {
-          return { ...item, qty: item.qty - 1 };
-        }
-        return item;
-      });
-
-      updated = updated.filter((item) => item.qty > 0);
-      setKeranjang(updated);
-      localStorage.setItem("keranjang", JSON.stringify(updated));
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  /* =====================================================
-     HAPUS ITEM
-  ===================================================== */
-  const hapusItem = (id) => {
-    try {
-      const updated = keranjang.filter((item) => item.id !== id);
-      setKeranjang(updated);
-      localStorage.setItem("keranjang", JSON.stringify(updated));
-      toast.success("Menu dihapus");
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  /* =====================================================
-     TOTAL HARGA
+     TOTAL CALCULATION (MEMOIZED)
   ===================================================== */
   const totalHarga = useMemo(() => {
-    return keranjang.reduce((acc, item) => {
-      return acc + Number(item.harga) * Number(item.qty);
-    }, 0);
+    return keranjang.reduce((acc, item) => acc + Number(item.harga) * item.qty, 0);
+  }, [keranjang]);
+
+  const totalItem = useMemo(() => {
+    return keranjang.reduce((acc, item) => acc + item.qty, 0);
   }, [keranjang]);
 
   /* =====================================================
-     LANJUT KONFIRMASI
+     PROSES CHECKOUT / LANJUT
   ===================================================== */
   const handleLanjut = () => {
     if (!kiosBuka) {
       toast.error("Kios sedang tutup");
       return;
     }
-
     if (keranjang.length === 0) {
       toast.error("Keranjang kosong");
       return;
     }
-
-    const invalidItems = keranjang.filter((item) => !menuMasihAda(item.id));
-
-    if (invalidItems.length > 0) {
-      invalidItems.forEach((item) => {
-        toast.error(`${item.nama} sudah tidak tersedia`);
-      });
-      validasiKeranjang(menuAktif);
-      return;
-    }
-
-    localStorage.setItem("checkoutItems", JSON.stringify(keranjang));
     navigate("/konfirmasi-pesanan");
   };
 
-  /* =====================================================
-     LOADING
-  ===================================================== */
-  if (loading) {
+  if (loading && menuAktif.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f6fa]">
-        <div className="w-14 h-14 rounded-full border-4 border-[#002366] border-t-transparent animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f5f7]">
+        <div className="w-12 h-12 rounded-full border-4 border-[#002366] border-t-transparent animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f6fa] px-4 md:px-8 py-6 pb-44 md:pb-40 w-full overflow-x-hidden">
-      
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-[#002366]">
-            Keranjang
-            <span className="text-[#FF8C00]"> Pesanan</span>
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm sm:text-base">
-            Daftar menu yang dipilih pelanggan.
-          </p>
-        </div>
-
-        <button
-          onClick={() => navigate("/daftar-menu")}
-          className="bg-[#002366] hover:bg-blue-950 text-white px-5 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base text-center w-full sm:w-auto shadow-sm active:scale-95 transition-all"
-        >
-          + Tambah Menu
-        </button>
-      </div>
-
-      {/* BANNER STATUS KIOS */}
-      {!kiosBuka && (
-        <div className="bg-red-100 border border-red-300 text-red-700 p-4 rounded-2xl mb-5 font-bold text-sm sm:text-base">
-          Kios sedang tutup. Pemesanan sementara tidak tersedia.
-        </div>
-      )}
-
-      {/* EMPTY STATE */}
-      {keranjang.length === 0 && (
-        <div className="bg-white rounded-[24px] md:rounded-[30px] p-8 md:p-12 text-center shadow-sm max-w-xl mx-auto border border-gray-100">
-          <div className="text-5xl sm:text-7xl">🛒</div>
-          <h1 className="text-xl sm:text-3xl font-black text-[#002366] mt-4">
-            Keranjang Kosong
-          </h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            Silakan pilih hidangan lezat kami di halaman menu.
-          </p>
-        </div>
-      )}
-
-      {/* LIST ITEMS */}
-      <div className="space-y-4 md:space-y-5">
-        {keranjang.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-[20px] md:rounded-[30px] p-4 md:p-5 shadow-sm border border-gray-50"
-          >
-            <div className="flex flex-row lg:flex-row gap-4 md:gap-6 items-center lg:items-start">
-              
-              {/* IMAGE */}
-              <img
-                src={item.gambar}
-                alt={item.nama}
-                className="w-24 h-24 sm:w-32 sm:h-32 lg:w-52 lg:h-52 object-cover rounded-2xl md:rounded-3xl flex-shrink-0"
-              />
-
-              {/* CONTENT */}
-              <div className="flex-1 min-w-0 h-full flex flex-col justify-between">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h1 className="text-lg sm:text-2xl md:text-5xl font-black text-[#002366] truncate pr-1">
-                      {item.nama}
-                    </h1>
-                    <h2 className="text-[#FF8C00] font-black text-base sm:text-xl md:text-3xl mt-1 md:mt-3">
-                      Rp {Number(item.harga).toLocaleString("id-ID")}
-                    </h2>
-                  </div>
-
-                  {/* HAPUS */}
-                  <button
-                    onClick={() => hapusItem(item.id)}
-                    className="bg-red-100 hover:bg-red-200 text-red-600 px-3 sm:px-5 py-1.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm flex-shrink-0 transition-colors"
-                  >
-                    Hapus
-                  </button>
-                </div>
-
-                {/* QUANTITY CONTROLLER */}
-                <div className="flex items-center gap-4 sm:gap-5 mt-4 lg:mt-10">
-                  {/* MIN BUTTON */}
-                  <button
-                    onClick={() => kurangQty(item.id)}
-                    className="w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gray-200 hover:bg-gray-300 rounded-xl sm:rounded-2xl text-xl sm:text-3xl font-black flex items-center justify-center transition-colors select-none"
-                  >
-                    -
-                  </button>
-
-                  {/* QUANTITY DISPLAY */}
-                  <div className="text-xl sm:text-3xl font-black text-[#002366] w-6 text-center select-none">
-                    {item.qty}
-                  </div>
-
-                  {/* PLUS BUTTON */}
-                  <button
-                    onClick={() => tambahQty(item.id)}
-                    className="w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-[#002366] hover:bg-blue-950 rounded-xl sm:rounded-2xl text-xl sm:text-3xl font-black text-white flex items-center justify-center transition-colors select-none"
-                  >
-                    +
-                  </button>
-                </div>
-
-              </div>
-
-            </div>
+    <div className="bg-[#F4F5F7] min-h-screen w-full overflow-x-hidden pb-40">
+      <div className="w-full px-4 sm:px-6 md:px-10 xl:px-16 py-6 md:py-10 max-w-[1440px] mx-auto">
+        
+        {/* ROW JUDUL */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl md:text-6xl font-black text-[#002366]">
+              Keranjang <span className="text-[#FF8C00]">Saya</span>
+            </h1>
+            <p className="text-gray-500 mt-2 text-sm sm:text-base">
+              Manajemen item pesanan pilihan Anda sebelum checkout.
+            </p>
           </div>
-        ))}
-      </div>
-
-      {/* BOTTOM FLOATING TOTAL */}
-      {keranjang.length > 0 && (
-        <div 
-          className="
-            fixed 
-            z-50 
-            bg-white 
-            shadow-2xl 
-            border 
-            border-gray-100
-            
-            /* Style untuk Layar HP (Kecil) */
-            bottom-4 
-            left-4 
-            right-4
-            rounded-[20px] 
-            p-4 
-            
-            /* Style untuk Layar Desktop (md ke atas) */
-            md:bottom-5 
-            md:right-5 
-            md:left-auto 
-            md:translate-x-0
-            md:w-[350px] 
-            md:rounded-[30px] 
-            md:p-5
-          "
-        >
-          <div className="flex justify-between items-center mb-4 sm:mb-5">
-            <h2 className="text-lg sm:text-2xl font-black text-[#002366]">
-              Total
-            </h2>
-            <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-[#FF8C00]">
-              Rp {totalHarga.toLocaleString("id-ID")}
-            </h2>
-          </div>
-
           <button
-            disabled={!kiosBuka}
-            onClick={handleLanjut}
-            className={`w-full py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-black text-white text-sm sm:text-base transition-all shadow-sm active:scale-95 text-center ${
-              kiosBuka
-                ? "bg-[#FF8C00] hover:bg-orange-600 cursor-pointer"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
+            onClick={() => navigate("/daftar-menu")}
+            className="hidden sm:block font-black text-sm text-[#002366] bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-xs hover:bg-gray-50 transition-all cursor-pointer"
           >
-            {kiosBuka ? "Lanjut Konfirmasi" : "Kios Sedang Tutup"}
+          Tambah Menu Lain
           </button>
         </div>
-      )}
 
+        {/* CONTAINER UTAMA GRID */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start mt-4">
+          
+          {/* SISI KIRI: DAFTAR ITEM PESANAN */}
+          <div className="xl:col-span-2 space-y-4 w-full">
+            {keranjang.length === 0 ? (
+              <div className="bg-white rounded-[24px] md:rounded-[35px] p-10 md:p-16 text-center border border-dashed border-gray-300">
+                <span className="text-5xl md:text-6xl block mb-4">🛒</span>
+                <h3 className="text-xl md:text-2xl font-black text-[#002366]">
+                  Keranjang Belanja Kosong
+                </h3>
+                <p className="text-gray-400 text-sm mt-1 mb-6 max-w-sm mx-auto">
+                  Anda belum menambahkan menu apapun ke dalam keranjang.
+                </p>
+                <button
+                  onClick={() => navigate("/daftar-menu")}
+                  className="bg-[#002366] hover:bg-blue-950 text-white font-black px-6 py-3.5 rounded-xl text-sm transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Lihat Menu Makanan
+                </button>
+              </div>
+            ) : (
+              keranjang.map((item) => {
+                return (
+                  <div
+                    key={item.cartKey || `${item.id}-${item.varian}`}
+                    className="bg-white rounded-[24px] md:rounded-[30px] p-4 sm:p-5 flex gap-4 items-center justify-between shadow-xs w-full relative"
+                  >
+                    {/* GAMBAR DAN DETIL NAMA */}
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 shrink-0">
+                        <img
+                          src={item.gambar || "https://placehold.co/150"}
+                          alt={item.nama}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg sm:text-xl font-black text-[#002366] line-clamp-1 capitalize">
+                          {item.nama}
+                        </h3>
+                        
+                        {/* BADGE VARIAN */}
+                        {Number(item.harga_extra) > 0 && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`px-2.5 py-0.5 text-[10px] uppercase font-black tracking-wider rounded-md ${
+                              item.varian === "extra"
+                                ? "bg-red-50 text-red-600 border border-red-200"
+                                : "bg-blue-50 text-[#002366] border border-blue-100"
+                            }`}>
+                              Varian: {item.varian || "Biasa"}
+                            </span>
+                          </div>
+                        )}
+
+                        <h4 className={`text-base sm:text-lg font-black mt-2 ${item.varian === "extra" ? "text-red-500" : "text-[#FF8C00]"}`}>
+                          Rp {Number(item.harga).toLocaleString("id-ID")}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* KONTROL QUANTITY DAN TOMBOL HAPUS */}
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 shrink-0">
+                      
+                      {/* PENGATUR JUMLAH BARIS */}
+                      <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-1 rounded-xl sm:rounded-2xl">
+                        <button
+                          onClick={() => kurangQty(item.cartKey)}
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white text-[#002366] hover:bg-gray-100 font-black text-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                        >
+                          -
+                        </button>
+                        <span className="text-base sm:text-lg font-black text-[#002366] min-w-[20px] text-center tabular-nums">
+                          {item.qty}
+                        </span>
+                        <button
+                          onClick={() => tambahQty(item.cartKey)}
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl text-white font-black text-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs bg-[#002366] hover:bg-blue-950"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* TOMBOL SAMPAH (HAPUS) */}
+                      <button
+                        onClick={() => hapusItem(item.cartKey, item.nama, item.varian, item.harga_extra)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        title="Hapus menu"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* SISI KANAN: RINGKASAN PEMBAYARAN */}
+          {keranjang.length > 0 && (
+            <div className="bg-white rounded-[24px] md:rounded-[35px] p-6 shadow-sm border border-gray-100 w-full space-y-5 sticky top-6">
+              <h3 className="text-xl font-black text-[#002366] border-b pb-3 border-gray-100">
+                Ringkasan Pesanan
+              </h3>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>Total Kuantitas</span>
+                  <span className="font-bold text-[#002366] tabular-nums">{totalItem} Item</span>
+                </div>
+
+                <div className="border-t border-dashed border-gray-100 pt-3 flex justify-between items-center">
+                  <span className="text-base font-black text-[#002366]">Subtotal</span>
+                  <span className="text-2xl font-black text-[#FF8C00] tabular-nums">
+                    Rp {totalHarga.toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                disabled={!kiosBuka}
+                onClick={handleLanjut}
+                className={`w-full py-4 rounded-2xl font-black text-white text-base transition-all shadow-sm active:scale-95 text-center cursor-pointer block ${
+                  kiosBuka ? "bg-[#FF8C00] hover:bg-orange-600" : "bg-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {kiosBuka ? "Konfirmasi Pesanan" : "Kios Sedang Tutup"}
+              </button>
+
+              <button
+                onClick={() => navigate("/daftar-menu")}
+                className="w-full text-center text-sm font-bold text-gray-400 hover:text-[#002366] transition-colors py-1 block cursor-pointer"
+              >
+                Kembali Belanja
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 };

@@ -220,120 +220,92 @@ if (kiosBuka) {
 // FETCH MENU TERLARIS BULAN INI
 // =========================
 
-const fetchMenuTerlaris =
-  async () => {
+const fetchMenuTerlaris = async () => {
+  try {
+    setLoading(true);
 
-    try {
+    const sekarang = new Date();
+    const awalBulan = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1).toISOString();
+    const akhirBulan = new Date(sekarang.getFullYear(), sekarang.getMonth() + 1, 1).toISOString();
 
-      setLoading(true);
+    // 1. Ambil data pesanan selesai bulan ini
+    const { data: dataPesanan, error: errorPesanan } = await supabase
+      .from("pesanan")
+      .select("*")
+      .eq("status", "selesai")
+      .gte("created_at", awalBulan)
+      .lt("created_at", akhirBulan);
 
-      const sekarang = new Date();
+    if (errorPesanan) throw errorPesanan;
 
-      const awalBulan =
-        new Date(
-          sekarang.getFullYear(),
-          sekarang.getMonth(),
-          1
-        ).toISOString();
+    // 2. Ambil data menu terbaru dari master tabel menu (ambil harga_biasa dan harga_extra)
+    const { data: dataMasterMenu, error: errorMenu } = await supabase
+      .from("menu")
+      .select("nama, harga_biasa, harga_extra");
 
-      const akhirBulan =
-        new Date(
-          sekarang.getFullYear(),
-          sekarang.getMonth() + 1,
-          1
-        ).toISOString();
+    if (errorMenu) throw errorMenu;
 
-      const {
-        data,
-        error
-      } = await supabase
-        .from("pesanan")
-        .select("*")
-        .eq("status", "selesai")
-        .gte(
-          "created_at",
-          awalBulan
-        )
-        .lt(
-          "created_at",
-          akhirBulan
-        );
+    // Buat map untuk mempermudah pencarian harga berdasarkan nama menu
+    const hargaMenuMap = {};
+    dataMasterMenu.forEach((m) => {
+      hargaMenuMap[m.nama] = {
+        harga_biasa: m.harga_biasa,
+        harga_extra: m.harga_extra
+      };
+    });
 
-      if (error) throw error;
+    let countMenu = {};
 
-      let countMenu = {};
+    dataPesanan.forEach((pesanan) => {
+      let items = Array.isArray(pesanan.items)
+        ? pesanan.items
+        : JSON.parse(pesanan.items || "[]");
 
-      data.forEach((pesanan) => {
+      items.forEach((item) => {
+        // Cek apakah item ini varian extra (sesuaikan indikatornya: item.varian, item.tipe, atau item.is_extra)
+        const isExtra = 
+          item.varian?.toLowerCase().includes("extra") || 
+          item.keterangan?.toLowerCase().includes("extra") ||
+          item.is_extra === true;
 
-        let items =
-          Array.isArray(
-            pesanan.items
-          )
-            ? pesanan.items
-            : JSON.parse(
-                pesanan.items || "[]"
-              );
+        // Tentukan harga master yang cocok, jika tidak ada di master baru pakai harga dari riwayat transaksi
+        let hargaFinal = item.harga;
+        if (hargaMenuMap[item.nama] !== undefined) {
+          hargaFinal = isExtra && hargaMenuMap[item.nama].harga_extra > 0
+            ? hargaMenuMap[item.nama].harga_extra
+            : hargaMenuMap[item.nama].harga_biasa;
+        }
 
-        items.forEach((item) => {
+        const keyPencarian = (item.nama || "")
+        .replace(/\s*\(biasa\)|\s*\(extra\)/gi, "")
+        .trim();
 
-          if (
-            countMenu[item.nama]
-          ) {
-
-            countMenu[item.nama]
-              .qty += Number(
-                item.qty
-              );
-
-          } else {
-
-            countMenu[item.nama] = {
-
-              ...item,
-
-              img:
-                item.gambar ||
-                item.img ||
-                "",
-
-              qty: Number(
-                item.qty
-              )
-
-            };
-
-          }
-
-        });
-
+        if (countMenu[keyPencarian]) {
+          countMenu[keyPencarian].qty += Number(item.qty || 0);
+        } else {
+          countMenu[keyPencarian] = {
+            ...item,
+            img: item.gambar || item.img || "",
+            nama: keyPencarian,
+            qty: Number(item.qty || 0),
+            harga_tampil: hargaFinal,
+            punya_harga_extra: hargaMenuMap[item.nama]?.harga_extra > 0,
+            harga_extra_master: hargaMenuMap[item.nama]?.harga_extra || 0,
+            harga_biasa_master: hargaMenuMap[item.nama]?.harga_biasa || 0
+          };
+        }
       });
+    });
 
-      const sortedMenu =
-        Object.values(
-          countMenu
-        ).sort(
-          (a, b) =>
-            b.qty - a.qty
-        );
+    const sortedMenu = Object.values(countMenu).sort((a, b) => b.qty - a.qty);
 
-      setMenuTerlaris(
-        sortedMenu.slice(0, 3)
-      );
-
-    } catch (error) {
-
-      console.log(
-        "Error menu terlaris:",
-        error
-      );
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
+    setMenuTerlaris(sortedMenu.slice(0, 3));
+  } catch (error) {
+    console.log("Error menu terlaris:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
 
@@ -558,14 +530,42 @@ const fetchMenuTerlaris =
                       </span>
                     </p>
                   </div>
+                {/* Bagian Harga */}
+                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    Harga Menu
+                  </span>
+                  
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    {item.punya_harga_extra ? (
+                      <>
+                        {/* Baris Biasa */}
+                        <div className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-600">
+                          <span className="w-14 text-center bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-tight shrink-0">
+                            Biasa
+                          </span>
+                          <span className="tabular-nums text-right w-full text-lg">
+                            Rp {Number(item.harga_biasa_master).toLocaleString("id-ID")}
+                          </span>
+                        </div>
 
-                  {/* Bagian Harga */}
-                  <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">Harga Menu</span>
-                    <span className="text-[#FF8C00] text-lg sm:text-xl font-black tracking-tight">
-                      Rp {Number(item.harga).toLocaleString("id-ID")}
-                    </span>
+                        {/* Baris Extra */}
+                        <div className="flex items-center justify-between gap-3 text-sm font-black text-[#FF8C00]">
+                          <span className="w-14 text-center bg-orange-50 text-[#FF8C00] px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-tight shrink-0">
+                            Extra
+                          </span>
+                          <span className="tabular-nums text-right w-full text-lg">
+                            Rp {Number(item.harga_extra_master).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-[#FF8C00] text-lg font-black tracking-tight text-right">
+                        Rp {Number(item.harga_tampil || 0).toLocaleString("id-ID")}
+                      </span>
+                    )}
                   </div>
+                </div>
                 </div>
               </div>
             ))}

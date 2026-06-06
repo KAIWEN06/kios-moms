@@ -1,1025 +1,570 @@
-import React, {
-  useState
-} from 'react';
-
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
-const KelolaMenuAdmin = ({
-  menu,
-  fetchMenu,
-  updateStokMenu
-}) => {
-
-  // FORM
+const KelolaMenuAdmin = ({ menu, fetchMenu, updateStokMenu }) => {
+  // FORM TAMBAH (Abaikan harga lama)
   const [form, setForm] = useState({
     nama: '',
-    harga: ''
+    harga_biasa: '',
+    harga_extra: ''
   });
 
-  // FILE
+  // FORM EDIT (Abaikan harga lama)
+  const [editForm, setEditForm] = useState({
+    nama: '',
+    harga_biasa: '',
+    harga_extra: ''
+  });
+
+  // FILE, LOADING, TAB, PAGE, EDIT/DELETE ID
   const [file, setFile] = useState(null);
-
-  // LOADING
-  const [loading, setLoading] =
-    useState(false);
-
-  // TAB
-  const [activeTab, setActiveTab] =
-    useState('aktif');
-
-  // PAGE
-  const [currentPage, setCurrentPage] =
-    useState(1);
-
-  // EDIT
-  const [editingId, setEditingId] =
-    useState(null);
-
-  // DELETE
-  const [deleteMenu, setDeleteMenu] =
-    useState(null);
-
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('aktif');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editingId, setEditingId] = useState(null);
+  const [deleteMenu, setDeleteMenu] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
 
-  // FILE CHANGE
-  const handleFileChange = (e) => {
+  // STATE UNTUK MENAMPUNG DATA PENJUALAN BERDASARKAN NAMA MENU (SINKRON BERANDA)
+  const [salesByMenuName, setSalesByMenuName] = useState({});
 
-    const selectedFile =
-      e.target.files[0];
+  // FUNGSI FETCH DATA PENJUALAN SINKRON BERANDA ADMIN
+  const fetchSalesDataWithBerandaLogic = async () => {
+    try {
+      const sekarang = new Date();
+      const awalBulan = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1).toISOString();
+      const akhirBulan = new Date(sekarang.getFullYear(), sekarang.getMonth() + 1, 1).toISOString();
 
-    if (selectedFile) {
+      const { data, error } = await supabase
+        .from("pesanan")
+        .select("*")
+        .eq("status", "selesai")
+        .gte("created_at", awalBulan)
+        .lt("created_at", akhirBulan);
 
-      setFile(selectedFile);
+      if (error) throw error;
 
+      let countMenu = {};
+      data.forEach((pesanan) => {
+        let items = Array.isArray(pesanan.items) ? pesanan.items : JSON.parse(pesanan.items || "[]");
+        items.forEach((item) => {
+          if (countMenu[item.nama]) {
+            countMenu[item.nama] += Number(item.qty);
+          } else {
+            countMenu[item.nama] = Number(item.qty);
+          }
+        });
+      });
+
+      setSalesByMenuName(countMenu);
+    } catch (error) {
+      console.log("Error mengambil data penjualan terlaris:", error);
     }
+  };
 
+  useEffect(() => {
+    fetchSalesDataWithBerandaLogic();
+
+    const channel = supabase
+      .channel("menu-terlaris-kelola-admin")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pesanan" }, async () => {
+        await fetchSalesDataWithBerandaLogic();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [menu]);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) setFile(selectedFile);
+  };
+
+  const handleStartEdit = (m) => {
+    setEditingId(m.id);
+    setEditForm({
+      nama: m.nama,
+      harga_biasa: m.harga_biasa || '',
+      harga_extra: m.harga_extra || ''
+    });
   };
 
   // =========================
   // TAMBAH MENU
   // =========================
-
   const handleUpload = async () => {
-
-    // VALIDASI
-    if (
-      !form.nama ||
-      !form.harga ||
-      !file
-    ) {
-
-      toast.error(
-        'Lengkapi data menu!'
-      );
-
+    if (!form.nama || !form.harga_biasa || !file) {
+      toast.error('Lengkapi data menu wajib!');
       return;
-
     }
 
-    // VALIDASI HARGA
-    if (
-      Number(form.harga) <= 0
-    ) {
-
-      toast.error(
-        'Harga tidak boleh 0 atau minus!'
-      );
-
+    const isDuplicate = menu && menu.some(
+      (m) => m.nama.trim().toLowerCase() === form.nama.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Menu dengan nama "${form.nama}" sudah ada!`);
       return;
+    }
 
+    const hargaBiasa = Number(form.harga_biasa);
+    
+    if (hargaBiasa <= 0) {
+      toast.error('Harga biasa tidak boleh 0 atau minus!');
+      return;
+    }
+
+    // VALIDASI HARGA EXTRA (PROTEKSI NILAI 0 / MINUS)
+    let hargaExtra = null;
+    if (form.harga_extra !== '') {
+      hargaExtra = Number(form.harga_extra);
+      if (hargaExtra <= 0) {
+        toast.error('Harga extra tidak boleh 0 atau bernilai minus!');
+        return;
+      }
+      if (hargaExtra <= hargaBiasa) {
+        toast.error('Harga extra harus lebih besar dari harga biasa!');
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      // FILE NAME
-      const fileName =
-        `${Date.now()}_${file.name}`;
+      const fileName = `${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('menu-images').upload(fileName, file);
+      if (uploadError) throw uploadError;
 
-      // UPLOAD
-      const {
-        error: uploadError
-      } = await supabase
-        .storage
-        .from('menu-images')
-        .upload(fileName, file);
+      const { data: urlData } = supabase.storage.from('menu-images').getPublicUrl(fileName);
 
-      if (uploadError)
-        throw uploadError;
-
-      // URL
-      const {
-        data: urlData
-      } = supabase
-        .storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-
-      // INSERT
-      const { error } =
-        await supabase
-          .from('menu')
-          .insert([
-            {
-              nama: form.nama,
-              harga: Number(
-                form.harga
-              ),
-              stok: 'ada',
-              img:
-                urlData.publicUrl
-            }
-          ]);
+      const { error } = await supabase.from('menu').insert([
+        {
+          nama: form.nama.trim(),
+          harga: hargaBiasa, 
+          harga_biasa: hargaBiasa,
+          harga_extra: hargaExtra,
+          stok: 'ada',
+          img: urlData.publicUrl
+        }
+      ]);
 
       if (error) throw error;
 
-      toast.success(
-        'Menu berhasil ditambahkan!',
-        {
-          style: {
-            borderRadius: '18px',
-            padding: '16px',
-            fontWeight: '700'
-          }
-        }
-      );
-
-      // FIX: PROSES RESET TOTAL SETELAH INPUT BERHASIL
-      setForm({
-        nama: '',
-        harga: ''
-      });
+      toast.success('Menu berhasil ditambahkan!', { style: { borderRadius: '18px', padding: '16px', fontWeight: '700' } });
+      setForm({ nama: '', harga_biasa: '', harga_extra: '' });
       setFile(null);
       setSelectedFile(null);
 
-      const fileInput =
-        document.getElementById(
-          'upload-file'
-        );
+      const fileInput = document.getElementById('upload-file');
+      if (fileInput) fileInput.value = '';
 
-      if (fileInput) {
-        fileInput.value = '';
-      }
-
-      // REFRESH
-      if (fetchMenu) {
-
-        await fetchMenu();
-
-      }
-
+      if (fetchMenu) await fetchMenu();
+      setCurrentPage(1); 
     } catch (error) {
-
       console.error(error);
-
-      toast.error(
-        error.message
-      );
-
+      toast.error(error.message);
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
   // =========================
-  // EDIT MENU
+  // SAVE EDIT MENU
   // =========================
-
-  const saveEdit = async (
-    menuId
-  ) => {
-
-    try {
-
-      const namaInput =
-        document.getElementById(
-          `nama-${menuId}`
-        );
-
-      const hargaInput =
-        document.getElementById(
-          `harga-${menuId}`
-        );
-
-      if (
-        !namaInput ||
-        !hargaInput
-      ) {
-
-        toast.error(
-          'Input tidak ditemukan'
-        );
-
-        return;
-
-      }
-
-      const nama =
-        namaInput.value;
-
-      const harga =
-        hargaInput.value;
-
-      // VALIDASI
-      if (
-        !nama ||
-        !harga
-      ) {
-
-        toast.error(
-          'Lengkapi data!'
-        );
-
-        return;
-
-      }
-
-      if (
-        Number(harga) <= 0
-      ) {
-
-        toast.error(
-          'Harga tidak boleh 0 atau minus!'
-        );
-
-        return;
-
-      }
-
-      // UPDATE
-      const { error } =
-        await supabase
-          .from('menu')
-          .update({
-            nama: nama,
-            harga: Number(
-              harga
-            )
-          })
-          .eq('id', menuId);
-
-      if (error) {
-
-        console.error(error);
-
-        toast.error(
-          error.message
-        );
-
-        return;
-
-      }
-
-      toast.success(
-        'Menu berhasil diupdate!',
-        {
-          style: {
-            borderRadius: '18px',
-            padding: '16px',
-            fontWeight: '700'
-          }
-        }
-      );
-
-      // CLOSE POPUP
-      setEditingId(null);
-
-      // REFRESH
-      if (fetchMenu) {
-
-        await fetchMenu();
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-      toast.error(
-        'Gagal update menu'
-      );
-
+  const saveEdit = async (menuId) => {
+    if (!editForm.nama || !editForm.harga_biasa) {
+      toast.error('Lengkapi data menu wajib!');
+      return;
     }
 
+    const isDuplicate = menu && menu.some(
+      (m) => m.id !== menuId && m.nama.trim().toLowerCase() === editForm.nama.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Menu dengan nama "${editForm.nama}" sudah ada!`);
+      return;
+    }
+
+    const hargaBiasa = Number(editForm.harga_biasa);
+
+    if (hargaBiasa <= 0) {
+      toast.error('Harga biasa tidak boleh 0 atau minus!');
+      return;
+    }
+
+    // VALIDASI HARGA EXTRA EDIT (PROTEKSI NILAI 0 / MINUS)
+    let hargaExtra = null;
+    if (editForm.harga_extra !== '' && editForm.harga_extra !== null) {
+      hargaExtra = Number(editForm.harga_extra);
+      if (hargaExtra <= 0) {
+        toast.error('Harga extra tidak boleh 0 atau bernilai minus!');
+        return;
+      }
+      if (hargaExtra <= hargaBiasa) {
+        toast.error('Harga extra harus lebih besar dari harga biasa!');
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('menu')
+        .update({
+          nama: editForm.nama.trim(),
+          harga: hargaBiasa, 
+          harga_biasa: hargaBiasa,
+          harga_extra: hargaExtra
+        })
+        .eq('id', menuId);
+
+      if (error) throw error;
+
+      toast.success('Menu berhasil diupdate!', { style: { borderRadius: '18px', padding: '16px', fontWeight: '700' } });
+      setEditingId(null);
+      if (fetchMenu) await fetchMenu();
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal update menu');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // =========================
   // HAPUS MENU
   // =========================
-
-  const hapusMenu = async (
-    id
-  ) => {
-
+  const hapusMenu = async (id) => {
     try {
-
-      const { error } =
-        await supabase
-          .from('menu')
-          .delete()
-          .eq('id', id);
-
+      const { error } = await supabase.from('menu').delete().eq('id', id);
       if (error) throw error;
 
-      toast.success(
-        'Menu berhasil dihapus!',
-        {
-          style: {
-            borderRadius: '18px',
-            padding: '16px',
-            fontWeight: '700'
-          }
-        }
-      );
-
+      toast.success('Menu berhasil dihapus!', { style: { borderRadius: '18px', padding: '16px', fontWeight: '700' } });
       setDeleteMenu(null);
-
-      if (fetchMenu) {
-
-        await fetchMenu();
-
-      }
-
+      if (fetchMenu) await fetchMenu();
+      setCurrentPage(1);
     } catch (error) {
-
-      toast.error(
-        'Gagal menghapus menu'
-      );
-
+      toast.error('Gagal menghapus menu');
     }
-
   };
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setFile(null);
-
-    const fileInput =
-      document.getElementById("upload-file");
-
-    if (fileInput) {
-      fileInput.value = "";
-    }
+    const fileInput = document.getElementById("upload-file");
+    if (fileInput) fileInput.value = "";
   };
 
-  // =========================
-  // FILTER MENU
-  // =========================
+  // SORTING & FILTERING
+  const filteredMenu = menu 
+    ? menu
+        .filter((m) => (activeTab === 'aktif' ? m.stok !== 'nonaktif' : m.stok === 'nonaktif'))
+        .sort((a, b) => {
+          const isAKosong = a.stok === 'kosong';
+          const isBKosong = b.stok === 'kosong';
+          if (isAKosong !== isBKosong) return isAKosong ? 1 : -1;
 
-  const filteredMenu =
-  menu.filter((m) =>
+          const terjualB = salesByMenuName[b.nama] || 0;
+          const terjualA = salesByMenuName[a.nama] || 0;
+          return terjualB - terjualA;
+        })
+    : [];
 
-    activeTab === 'aktif'
-
-      ? m.stok !== 'nonaktif'
-
-      : m.stok === 'nonaktif'
-
-  );
-
-  // =========================
   // PAGINATION
-  // =========================
-
   const itemPerPage = 8;
-
-  const totalPage =
-    Math.ceil(
-      filteredMenu.length /
-      itemPerPage
-    );
-
-  const startIndex =
-    (currentPage - 1) *
-    itemPerPage;
-
-  const visibleMenu =
-    filteredMenu.slice(
-      startIndex,
-      startIndex + itemPerPage
-    );
+  const totalPage = Math.ceil(filteredMenu.length / itemPerPage);
+  const startIndex = (currentPage - 1) * itemPerPage;
+  const visibleMenu = filteredMenu.slice(startIndex, startIndex + itemPerPage);
 
   return (
-
-    <div className="p-4 md:p-10 bg-[#f0f2f5] min-h-screen">
-
+    <div className="p-3 sm:p-6 md:p-10 bg-[#f0f2f5] min-h-screen">
       {/* TITLE */}
-      <h2 className="text-3xl font-black text-[#002366] mb-8">
-
+      <h2 className="text-2xl sm:text-3xl font-black text-[#002366] mb-6 md:mb-8 text-center sm:text-left">
         Manajemen <span className="text-[#FF8C00]">Produk & Stok</span>
-
       </h2>
 
-      {/* FORM */}
-      <div className="bg-white p-8 rounded-[35px] shadow-sm mb-12 max-w-4xl mx-auto">
+      {/* FORM TAMBAH MENU */}
+      <div className="bg-white p-5 md:p-8 rounded-[25px] sm:rounded-[35px] shadow-sm mb-8 md:mb-12 max-w-4xl mx-auto">
+        <h3 className="font-bold text-base sm:text-lg mb-4 md:mb-6 border-b pb-2">Tambah Menu Baru</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700">Nama Menu <span className="text-red-500 ml-1">*</span></label>
+            <input
+              value={form.nama}
+              onChange={(e) => setForm({ ...form, nama: e.target.value })}
+              className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+              placeholder="Contoh: Ayam Geprek"
+            />
+          </div>
 
-        <h3 className="font-bold text-lg mb-6 border-b pb-2">
+          <div className="space-y-1">
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700">Harga Biasa <span className="text-red-500 ml-1">*</span></label>
+            <input
+              type="number"
+              value={form.harga_biasa}
+              onChange={(e) => setForm({ ...form, harga_biasa: e.target.value })}
+              className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+              placeholder="Contoh: 15000"
+            />
+          </div>
 
-          Tambah Menu Baru
+          <div className="space-y-1">
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700">Harga Extra (Opsional)</label>
+            <input
+              type="number"
+              value={form.harga_extra}
+              onChange={(e) => setForm({ ...form, harga_extra: e.target.value })}
+              className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+              placeholder="Kosongkan jika tidak ada"
+            />
+          </div>
 
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* NAMA */}
-          <input
-            type="text"
-            value={form.nama}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                nama:
-                  e.target.value
-              })
-            }
-            className="w-full p-3 bg-gray-50 border rounded-xl"
-            placeholder="Nama Menu"
-          />
-
-          {/* HARGA */}
-          <input
-            type="number"
-            value={form.harga}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                harga:
-                  e.target.value
-              })
-            }
-            className="w-full p-3 bg-gray-50 border rounded-xl"
-            placeholder="Harga Rp"
-          />
-
-          {/* FILE */}
           <div className="md:col-span-2">
-
             <input
               id="upload-file"
               type="file"
               onChange={(e) => {
                 const fileObj = e.target.files?.[0];
-
                 if (!fileObj) return;
-
                 setSelectedFile(fileObj);
-
                 handleFileChange(e);
               }}
               className="hidden"
             />
-
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Foto Menu <span className="text-red-500 ml-1">*</span></label>
             <div className="border-2 border-dashed rounded-xl p-3">
-
               <div className="flex items-center justify-between gap-2">
-
-                <span className="text-sm truncate">
-                  {selectedFile
-                    ? selectedFile.name
-                    : "Belum ada foto dipilih"}
+                <span className="text-xs sm:text-sm truncate max-w-[180px] sm:max-w-none">
+                  {selectedFile ? selectedFile.name : "Belum ada foto dipilih"}
                 </span>
-
-                <div className="flex gap-2">
-
-                  <label
-                    htmlFor="upload-file"
-                    className="px-3 py-2 bg-[#002366] text-white rounded-lg text-xs cursor-pointer"
-                  >
-                    Pilih File
-                  </label>
-
-                  {selectedFile && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveFile}
-                      className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs"
-                    >
-                      Hapus
-                    </button>
-                  )}
-
+                <div className="flex gap-2 shrink-0">
+                  <label htmlFor="upload-file" className="px-2.5 py-2 bg-[#002366] text-white rounded-lg text-[11px] font-bold cursor-pointer">Pilih File</label>
+                  {selectedFile && <button type="button" onClick={handleRemoveFile} className="px-2.5 py-2 bg-red-500 text-white rounded-lg text-[11px] font-bold">Hapus</button>}
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
-
-        {/* BUTTON */}
-        <button
-          onClick={
-            handleUpload
-          }
-          disabled={loading}
-          className="w-full mt-6 bg-[#002366] text-white py-4 rounded-2xl font-black uppercase hover:bg-blue-900 transition-all"
-        >
-
-          {loading
-            ? 'Memproses...'
-            : 'Simpan Menu'}
-
+        <button onClick={handleUpload} disabled={loading} className="w-full mt-6 bg-[#002366] text-white py-3.5 sm:py-4 rounded-2xl font-black uppercase text-xs sm:text-sm hover:bg-blue-900 transition-all tracking-wider">
+          {loading ? 'Memproses...' : 'Simpan Menu'}
         </button>
-
       </div>
 
-      {/* TAB */}
-      <div className="flex gap-4 mb-8">
-
-        <button
-          onClick={() => {
-
-            setActiveTab(
-              'aktif'
-            );
-
-            setCurrentPage(1);
-
-          }}
-          className={`px-6 py-3 rounded-2xl font-black transition-all ${
-            activeTab ===
-            'aktif'
-              ? 'bg-[#002366] text-white'
-              : 'bg-white text-gray-500'
-          }`}
-        >
-
-          Menu Aktif
-
-        </button>
-
-        <button
-          onClick={() => {
-
-            setActiveTab(
-              'nonaktif'
-            );
-
-            setCurrentPage(1);
-
-          }}
-          className={`px-6 py-3 rounded-2xl font-black transition-all ${
-            activeTab ===
-            'nonaktif'
-              ? 'bg-red-500 text-white'
-              : 'bg-white text-gray-500'
-          }`}
-        >
-
-          Menu Nonaktif
-
-        </button>
-
+      {/* TAB MENU */}
+      <div className="flex gap-3 mb-6 md:mb-8 justify-center sm:justify-start">
+        <button onClick={() => { setActiveTab('aktif'); setCurrentPage(1); }} className={`px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all ${activeTab === 'aktif' ? 'bg-[#002366] text-white shadow-sm' : 'bg-white text-gray-500'}`}>Menu Aktif</button>
+        <button onClick={() => { setActiveTab('nonaktif'); setCurrentPage(1); }} className={`px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all ${activeTab === 'nonaktif' ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-500'}`}>Menu Nonaktif</button>
       </div>
 
-      {/* MENU */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-
+      {/* GRID LIST MENU - DIOPTIMALKAN SUPAYA TIDAK SALING TINDIH DI MOBILE */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-max">
         {filteredMenu.length === 0 ? (
-          <div className="col-span-2 md:col-span-4 text-center py-10 text-gray-400 font-bold">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-4 text-center py-10 text-gray-400 font-bold text-sm">
             Tidak ada menu dalam kategori ini.
           </div>
         ) : (
-          visibleMenu.map((m) => (
-            <div
-              key={m.id}
-              className={`bg-white p-4 rounded-3xl shadow-sm border flex flex-col justify-between transition-all ${
-                m.stok ===
-                'kosong'
-                  ? 'opacity-70'
-                  : ''
-              }`}
-            >
+          visibleMenu.map((m, index) => {
+            const totalTerjualBulanIni = salesByMenuName[m.nama] || 0;
+            const bauranVarianExtra = Number(m.harga_extra) > 0;
 
-              <div>
-
-                {/* IMAGE */}
-                <img
-                  src={m.img}
-                  alt={m.nama}
-                  className={`w-full h-32 object-cover rounded-2xl mb-3 ${
-                    m.stok ===
-                    'kosong'
-                      ? 'grayscale'
-                      : ''
-                  }`}
-                />
-
-                {/* NAMA */}
-                <h4 className="font-bold text-sm truncate">
-
-                  {m.nama}
-
-                </h4>
-
-                {/* HARGA */}
-                <p className="text-[#FF8C00] font-black text-xs mb-3">
-
-                  Rp {Number(
-                    m.harga
-                  ).toLocaleString()}
-
-                </p>
-
-              </div>
-
-              {/* STATUS */}
-              {activeTab === 'aktif' ? (
-
-                <select
-                  className="w-full p-2 bg-gray-50 border rounded-lg text-xs font-bold outline-none cursor-pointer hover:border-[#FF8C00] transition-colors"
-                  value={
-                    m.stok ===
-                    'kosong'
-                      ? 'kosong'
-                      : 'ada'
-                  }
-                  onChange={async (
-                    e
-                  ) => {
-
-                    const newStatus =
-                      e.target.value;
-
-                    await updateStokMenu(
-                      m.id,
-                      newStatus
-                    );
-
-                    if (
-                      fetchMenu
-                    ) {
-
-                      await fetchMenu();
-
-                    }
-
-                    toast.success(
-                      'Status menu berhasil diperbarui!',
-                      {
-                        style: {
-                          borderRadius: '18px',
-                          padding: '16px',
-                          fontWeight: '700'
-                        }
-                      }
-                    );
-
-                  }}
-                >
-
-                  <option value="ada">
-
-                    Tersedia
-
-                  </option>
-
-                  <option value="kosong">
-
-                    Tidak Tersedia
-
-                  </option>
-
-                </select>
-
-              ) : (
-
-                <div className="w-full bg-gray-200 text-gray-500 text-center py-3 rounded-xl text-xs font-black uppercase tracking-wide">
-
-                  Menu Dinonaktifkan
-
+            return (
+              <div 
+                key={m.id} 
+                className={`bg-white p-4 rounded-2xl sm:rounded-3xl shadow-sm border flex flex-col justify-between transition-all ${
+                  m.stok === 'kosong' ? 'opacity-75 border-amber-300 bg-amber-50/10' : 'border-gray-100'
+                }`}
+                style={{ order: index }}
+              >
+                <div className="mb-3">
+                  <div className="relative">
+                    <img src={m.img} alt={m.nama} className={`w-full h-40 sm:h-32 object-cover rounded-xl sm:rounded-2xl mb-3 ${m.stok === 'kosong' ? 'grayscale opacity-60' : ''}`} />
+                    {totalTerjualBulanIni > 0 && (
+                      <span className="absolute top-2 left-2 bg-[#FF8C00] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                        🔥 {totalTerjualBulanIni} Terjual
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="font-black text-sm sm:text-base text-gray-800 truncate mb-2 px-0.5 capitalize">{m.nama}</h4>
+                  
+                  {/* HARGA BIASA & EXTRA */}
+                  <div className="flex justify-between items-center bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/70 min-h-[48px]">
+                    <div>
+                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Biasa</span>
+                      <span className="text-[#FF8C00] font-black text-xs sm:text-sm">
+                        Rp {Number(m.harga_biasa).toLocaleString()}
+                      </span>
+                    </div>
+                    {bauranVarianExtra && (
+                      <div className="text-left">
+                        <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Extra</span>
+                        <span className="text-red-500 font-black text-xs sm:text-sm">
+                          Rp {Number(m.harga_extra).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-              )}
-
-              {/* ACTION */}
-              <div className="flex flex-col gap-2 mt-3">
-
-                {/* EDIT */}
-                <button
-                  onClick={() =>
-                    setEditingId(
-                      m.id
+                {/* DROPDOWN & TOMBOL SEPERTI SEBELUMNYA */}
+                <div className="space-y-2.5 w-full">
+                  {activeTab === 'aktif' ? (
+                    bauranVarianExtra ? (
+                      <select
+                        className="w-full px-2 py-2.5 border bg-white rounded-xl text-[11px] font-bold outline-none cursor-pointer border-gray-200 hover:border-[#002366] text-gray-700 truncate"
+                        value={m.stok}
+                        onChange={async (e) => {
+                          const statusBaru = e.target.value;
+                          await updateStokMenu(m.id, statusBaru);
+                          if (fetchMenu) await fetchMenu();
+                          toast.success('Ketersediaan varian diperbarui!');
+                        }}
+                      >
+                        <option value="ada">Semua Varian Tersedia</option>
+                        <option value="biasa_ada">Hanya Varian Biasa Tersedia</option>
+                        <option value="extra_ada">Hanya Varian Extra Tersedia</option>
+                        <option value="kosong">Semua Varian Kosong</option>
+                      </select>
+                    ) : (
+                      <select
+                        className={`w-full px-2 py-2.5 border rounded-xl text-[11px] font-bold outline-none cursor-pointer truncate ${m.stok === 'kosong' ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-gray-200 hover:border-[#002366] text-gray-700'}`}
+                        value={m.stok === 'kosong' ? 'kosong' : 'ada'}
+                        onChange={async (e) => {
+                          const statusBaru = e.target.value;
+                          await updateStokMenu(m.id, statusBaru);
+                          if (fetchMenu) await fetchMenu();
+                          toast.success('Status ketersediaan diperbarui!');
+                        }}
+                      >
+                        <option value="ada">Tersedia</option>
+                        <option value="kosong">Tidak Tersedia</option>
+                      </select>
                     )
-                  }
-                  className="w-full bg-[#002366] text-white py-2 rounded-xl text-xs font-black hover:bg-blue-900 transition-all"
-                >
+                  ) : (
+                    <div className="w-full bg-gray-100 text-gray-400 text-center py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-gray-200/50">Menu Nonaktif</div>
+                  )}
 
-                  Edit
-
-                </button>
-
-                {/* NONAKTIF */}
-                {activeTab ===
-                'nonaktif' ? (
-
-                  <div className="flex gap-2">
-
-                    {/* AKTIFKAN */}
-                    <button
-                      onClick={async () => {
-
-                        await updateStokMenu(
-                          m.id,
-                          'ada'
-                        );
-
-                        toast.success(
-                          'Menu berhasil diaktifkan!'
-                        );
-
-                        if (
-                          fetchMenu
-                        ) {
-
-                          await fetchMenu();
-
-                        }
-
-                        setActiveTab(
-                          'aktif'
-                        );
-
-                      }}
-                      className="flex-1 bg-green-500 text-white py-2 rounded-xl text-xs font-black"
-                    >
-
-                      Aktifkan
-
+                  <div className="flex flex-row gap-2 w-full">
+                    <button onClick={() => handleStartEdit(m)} className="flex-1 bg-[#002366] text-white py-2 rounded-xl text-xs font-bold hover:bg-blue-900 transition-all text-center">
+                      Edit
                     </button>
-
-                    {/* HAPUS */}
-                    <button
-                      onClick={() =>
-                        setDeleteMenu(
-                          m
-                        )
-                      }
-                      className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-black"
-                    >
-
-                      Hapus
-
-                    </button>
-
+                    
+                    {activeTab === 'nonaktif' ? (
+                      <>
+                        <button 
+                          onClick={async () => { 
+                            await updateStokMenu(m.id, 'ada'); 
+                            toast.success('Menu berhasil diaktifkan!'); 
+                            if (fetchMenu) await fetchMenu(); 
+                            setCurrentPage(1); 
+                            setActiveTab('aktif'); 
+                          }} 
+                          className="flex-1 bg-green-500 text-white py-2 rounded-xl text-xs font-bold text-center"
+                        >
+                          Aktifkan
+                        </button>
+                        <button onClick={() => setDeleteMenu(m)} className="p-2 bg-red-500 text-white rounded-xl text-xs font-bold shrink-0">
+                          🗑️
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={async () => { 
+                          await updateStokMenu(m.id, 'nonaktif'); 
+                          toast.success('Menu dipindahkan ke nonaktif'); 
+                          if (fetchMenu) await fetchMenu(); 
+                          setCurrentPage(1); 
+                          setActiveTab('nonaktif'); 
+                        }} 
+                        className="flex-1 bg-gray-400 text-white py-2 rounded-xl text-xs font-bold text-center hover:bg-gray-500 transition-all"
+                      >
+                        Nonaktifkan
+                      </button>
+                    )}
                   </div>
-
-                ) : (
-
-                  <button
-                    onClick={async () => {
-
-                      await updateStokMenu(
-                        m.id,
-                        'nonaktif'
-                      );
-
-                      toast.success(
-                        'Menu dipindahkan ke nonaktif'
-                      );
-
-                      if (
-                        fetchMenu
-                      ) {
-
-                        await fetchMenu();
-
-                      }
-
-                      setActiveTab(
-                        'nonaktif'
-                      );
-
-                    }}
-                    className="w-full bg-gray-500 text-white py-2 rounded-xl text-xs font-black"
-                  >
-
-                    Nonaktifkan
-
-                  </button>
-
-                )}
-
+                </div>
               </div>
-
-            </div>
-
-          ))
+            );
+          })
         )}
-
       </div>
 
-      {/* PAGINATION */}
+      {/* PAGINATION RESPONSIVE */}
       {totalPage > 1 && (
-        <div className="flex items-center justify-center gap-4 mt-10">
-
-          <button
-            disabled={
-              currentPage === 1
-            }
-            onClick={() =>
-              setCurrentPage(
-                currentPage - 1
-              )
-            }
-            className={`px-5 py-3 rounded-2xl font-bold ${
-              currentPage === 1
-                ? 'bg-gray-100 text-gray-300'
-                : 'bg-[#002366] text-white'
-            }`}
-          >
-
-            Sebelumnya
-
-          </button>
-
-          <div className="font-black text-[#002366]">
-
-            {currentPage} /{' '}
-            {totalPage}
-
-          </div>
-
-          <button
-            disabled={
-              currentPage ===
-              totalPage
-            }
-            onClick={() =>
-              setCurrentPage(
-                currentPage + 1
-              )
-            }
-            className={`px-5 py-3 rounded-2xl font-bold ${
-              currentPage ===
-              totalPage
-                ? 'bg-gray-100 text-gray-300'
-                : 'bg-[#FF8C00] text-white'
-            }`}
-          >
-
-            Berikutnya
-
-          </button>
-
+        <div className="flex items-center justify-center gap-3 sm:gap-4 mt-8 md:mt-10">
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} className={`px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm ${currentPage === 1 ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-[#002366] text-white'}`}>Sebelumnya</button>
+          <div className="font-black text-xs sm:text-sm text-[#002366] bg-white px-3 py-2 rounded-xl border border-gray-100 shadow-2xs">{currentPage} / {totalPage}</div>
+          <button disabled={currentPage === totalPage} onClick={() => setCurrentPage(currentPage + 1)} className={`px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm ${currentPage === totalPage ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-[#FF8C00] text-white'}`}>Berikutnya</button>
         </div>
       )}
 
-      {/* EDIT POPUP */}
+      {/* POPUP MODAL EDIT MENU */}
       {editingId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-[25px] sm:rounded-[35px] p-6 sm:p-8 my-auto shadow-xl max-h-[90vh] overflow-y-auto animate-fade-in">
+            <h3 className="font-black text-lg sm:text-xl text-[#002366] mb-4 sm:mb-6 border-b pb-2">Edit Data Menu</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="space-y-1 md:col-span-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">Nama Menu <span className="text-red-500 ml-1">*</span></label>
+                <input
+                  value={editForm.nama}
+                  onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+                />
+              </div>
 
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+              <div className="space-y-1">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">Harga Biasa <span className="text-red-500 ml-1">*</span></label>
+                <input
+                  type="number"
+                  value={editForm.harga_biasa}
+                  onChange={(e) => setEditForm({ ...editForm, harga_biasa: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+                />
+              </div>
 
-          <div className="bg-white w-full max-w-lg rounded-[35px] p-8">
-
-            {menu
-              .filter(
-                (x) =>
-                  x.id ===
-                  editingId
-              )
-              .map((m) => (
-
-                <div
-                  key={m.id}
-                >
-
-                  <h2 className="text-2xl font-black text-[#002366] mb-6">
-
-                    Edit Menu
-
-                  </h2>
-
-                  {/* INPUT */}
-                  <div className="space-y-4">
-
-                    {/* NAMA */}
-                    <input
-                      id={`nama-${m.id}`}
-                      defaultValue={
-                        m.nama
-                      }
-                      className="w-full p-4 rounded-2xl border"
-                    />
-
-                    {/* HARGA */}
-                    <input
-                      id={`harga-${m.id}`}
-                      type="number"
-                      defaultValue={
-                        m.harga
-                      }
-                      className="w-full p-4 rounded-2xl border"
-                    />
-
-                  </div>
-
-                  {/* BUTTON */}
-                  <div className="flex gap-4 mt-6">
-
-                    <button
-                      onClick={() =>
-                        saveEdit(
-                          m.id
-                        )
-                      }
-                      className="flex-1 bg-[#002366] text-white py-4 rounded-2xl font-black"
-                    >
-
-                      Simpan
-
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        setEditingId(
-                          null
-                        )
-                      }
-                      className="flex-1 bg-gray-100 py-4 rounded-2xl font-black"
-                    >
-
-                      Batal
-
-                    </button>
-
-                  </div>
-
-                </div>
-
-              ))}
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* DELETE */}
-      {deleteMenu && (
-
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-
-          <div className="bg-white w-full max-w-md rounded-[35px] p-8 text-center">
-
-            <h2 className="text-2xl font-black text-red-500 mb-4">
-
-              Konfirmasi Hapus
-
-            </h2>
-
-            <p className="text-gray-500 mb-8">
-
-              Pastikan menu belum pernah di pesan.
-
-            </p>
-
-            <div className="flex gap-4">
-
-              <button
-                onClick={() =>
-                  hapusMenu(
-                    deleteMenu.id
-                  )
-                }
-                className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-black"
-              >
-
-                Hapus
-
-              </button>
-
-              <button
-                onClick={() =>
-                  setDeleteMenu(
-                    null
-                  )
-                }
-                className="flex-1 bg-gray-100 py-4 rounded-2xl font-black"
-              >
-
-                Batal
-
-              </button>
-
+              <div className="space-y-1">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">Harga Extra (Opsional)</label>
+                <input
+                  type="number"
+                  value={editForm.harga_extra}
+                  onChange={(e) => setEditForm({ ...editForm, harga_extra: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border rounded-xl text-sm"
+                  placeholder="Kosongkan jika tidak ada"
+                />
+              </div>
             </div>
 
+            <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
+              <button onClick={() => saveEdit(editingId)} disabled={loading} className="w-full sm:flex-1 bg-[#002366] text-white py-3.5 rounded-xl font-black uppercase text-xs sm:text-sm hover:bg-blue-900 transition-all order-1 sm:order-2">
+                {loading ? 'Memproses...' : 'Simpan Perubahan'}
+              </button>
+              <button onClick={() => setEditingId(null)} disabled={loading} className="w-full sm:flex-1 bg-gray-100 text-gray-600 py-3.5 rounded-xl font-black uppercase text-xs sm:text-sm hover:bg-gray-200 transition-all order-2 sm:order-1">
+                Batal
+              </button>
+            </div>
           </div>
-
         </div>
-
       )}
 
+      {/* DELETE MODAL */}
+      {deleteMenu && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[25px] sm:rounded-[35px] p-6 sm:p-8 text-center shadow-xl animate-fade-in">
+            <h2 className="text-xl sm:text-2xl font-black text-red-500 mb-2">Konfirmasi Hapus</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mb-6 sm:mb-8">Pastikan menu belum pernah dipesan oleh pelanggan.</p>
+            <div className="flex gap-3 sm:gap-4">
+              <button onClick={() => hapusMenu(deleteMenu.id)} className="flex-1 bg-red-500 text-white py-3 rounded-xl text-xs sm:text-sm font-black tracking-wide uppercase">Hapus</button>
+              <button onClick={() => setDeleteMenu(null)} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl text-xs sm:text-sm font-black tracking-wide uppercase">Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-
   );
-
 };
 
 export default KelolaMenuAdmin;

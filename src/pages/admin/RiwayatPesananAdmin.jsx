@@ -25,6 +25,11 @@ const RiwayatPesanan = () => {
 
   const [historyOrders, setHistoryOrders] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 10;
+
   const [loading, setLoading] = useState(true);
 
   const [searchKode, setSearchKode] = useState('');
@@ -70,6 +75,34 @@ const RiwayatPesanan = () => {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+
+  if (
+    historyOrders.length === 0 ||
+    selectedDate
+  ) {
+    return;
+  }
+
+  const today = new Date();
+
+  const todayStr =
+    formatDateToLocalISO(today);
+
+  const adaDataHariIni =
+    historyOrders.some(
+      (o) =>
+        formatDateToLocalISO(
+          o.created_at
+        ) === todayStr
+    );
+
+  if (adaDataHariIni) {
+    setSelectedDate(today);
+  }
+
+}, [historyOrders]);
 
   // 1. DATA TANGGAL YANG ADA (Format: YYYY-MM-DD)
   const availableDates = useMemo(() => {
@@ -157,6 +190,19 @@ const availablePeriods = useMemo(() => {
   const toggleDetail = (idx) => {
     setOpenIndex(openIndex === idx ? null : idx);
   };
+
+  const totalPages = Math.ceil(
+  filteredOrders.length / itemsPerPage
+);
+
+const paginatedOrders =
+  filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+const maxVisiblePages =
+  window.innerWidth < 640 ? 4 : 8;
 
   if (loading) {
     return (
@@ -323,7 +369,7 @@ const availablePeriods = useMemo(() => {
           <p className="text-gray-400 italic">Belum ada riwayat pesanan.</p>
         </div>
       ) : (
-        filteredOrders.map((o, idx) => {
+        paginatedOrders.map((o, idx) => {
           const parsedItems = parseItems(o.items);
           return (
             <div
@@ -367,10 +413,26 @@ const availablePeriods = useMemo(() => {
                     {parsedItems.length > 0 ? (
                       parsedItems.map((i, iIdx) => (
                         <li key={`${i.nama}-${iIdx}`} className="text-sm">
-                          <span className="font-semibold text-gray-800">{i.nama}</span> x {i.qty}
+                          <span className="font-semibold text-gray-800">
+                            {i.nama}
+                          </span>
+
+                          {Number(i.harga_extra || 0) > 0 && (
                             <span className="ml-2 text-gray-500">
-                              - Rp {(Number(i.harga || 0) * Number(i.qty || 0)).toLocaleString('id-ID')}
+                              {' '}
+                              (
+                              {String(i.varian).toLowerCase() === 'extra'
+                                ? 'Extra'
+                                : 'Biasa'}
+                              )
                             </span>
+                          )}
+
+                          {' '}x {i.qty}
+
+                          <span className="ml-2 text-gray-500">
+                            - Rp {(Number(i.harga || 0) * Number(i.qty || 0)).toLocaleString('id-ID')}
+                          </span>
                         </li>
                       ))
                     ) : (
@@ -401,6 +463,65 @@ const availablePeriods = useMemo(() => {
           );
         })
       )}
+
+      {totalPages > 1 && (
+  <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
+
+    <button
+      onClick={() =>
+        setCurrentPage((p) =>
+          Math.max(1, p - 1)
+        )
+      }
+      disabled={currentPage === 1}
+      className="px-4 py-2 rounded-xl bg-gray-200 disabled:opacity-40"
+    >
+      ←
+    </button>
+
+    {Array.from(
+      { length: totalPages },
+      (_, i) => i + 1
+    )
+      .filter((page) => {
+        const half =
+          Math.floor(maxVisiblePages / 2);
+
+        return (
+          page >= currentPage - half &&
+          page <= currentPage + half
+        );
+      })
+      .map((page) => (
+        <button
+          key={page}
+          onClick={() =>
+            setCurrentPage(page)
+          }
+          className={`w-10 h-10 rounded-xl font-bold ${
+            currentPage === page
+              ? "bg-[#FF8C00] text-white"
+              : "bg-white border"
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+
+    <button
+      onClick={() =>
+        setCurrentPage((p) =>
+          Math.min(totalPages, p + 1)
+        )
+      }
+      disabled={currentPage === totalPages}
+      className="px-4 py-2 rounded-xl bg-gray-200 disabled:opacity-40"
+    >
+      →
+    </button>
+
+  </div>
+)}
     </div>
   );
 };
