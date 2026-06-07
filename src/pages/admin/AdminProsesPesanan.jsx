@@ -41,7 +41,12 @@ const AdminProsesPesanan = () => {
       setLoading(true);
       const { data: pesananData, error: pesananError } = await supabase
         .from("pesanan")
-        .select("*")
+        .select(`
+          *,
+          guest_customer (
+            access_token
+          )
+        `)
         .in("status", ["menunggu_pembayaran", "diproses"])
         .order("created_at", { ascending: false });
 
@@ -474,9 +479,62 @@ if (
         const itemsAktif = rawItems.filter((item) => !item.menu_habis && !item.dihapus_admin);
         const totalBaru = itemsAktif.reduce((total, item) => total + Number(item.harga || 0) * Number(item.qty || 0), 0);
 
-        const { error } = await supabase.from("pesanan").update({ items: itemsAktif, total_harga: totalBaru, status: "diproses" }).eq("id", targetId);
+        const { error } = await supabase
+          .from("pesanan")
+          .update({
+            items: itemsAktif,
+            total_harga: totalBaru,
+            status: "diproses"
+          })
+          .eq("id", targetId);
+
         if (error) throw error;
-        toast.success("Pembayaran berhasil dikonfirmasi!");
+
+        const { error: emailError } =
+        await supabase.functions.invoke(
+          "send-order-email",
+          {
+            body: {
+              email:
+                targetPesanan.email,
+
+              nama_pembeli:
+                targetPesanan.nama_pembeli,
+
+              kode_pesanan:
+                targetPesanan.kode_pesanan,
+
+              nomor_meja:
+                targetPesanan.nomor_meja,
+
+              total_harga:
+                totalBaru,
+
+              items:
+                itemsAktif,
+
+              access_token:
+                targetPesanan
+                  ?.guest_customer
+                  ?.access_token || ""
+            }
+          }
+        );
+
+        console.log("EMAIL ERROR:", emailError);
+
+      if (emailError) {
+        console.error(
+          "EMAIL ERROR:",
+          emailError
+        );
+      }
+
+        console.log(targetPesanan);
+
+        toast.success(
+          "Pembayaran berhasil dikonfirmasi!"
+        );
 
       } else if (type === "hapus_menu") {
         if (!targetPesanan) throw new Error("Pesanan tidak ditemukan");
