@@ -349,10 +349,28 @@ const KonfirmasiPesananPembeli = () => {
         .from("pesanan")
         .insert([payload]);
 
-      if (insertError) {
-        toast.error("Gagal menyimpan pesanan");
+    if (insertError) {
+
+      console.error(insertError);
+
+      const isMejaConflict =
+        insertError.code === "23505" ||
+        insertError.message?.includes("unique_meja_aktif") ||
+        insertError.details?.includes("meja_id");
+
+      if (isMejaConflict) {
+
+        toast.error(
+          `Meja ${selectedMeja} baru saja dipilih pelanggan lain. Silakan pilih meja lain.`
+        );
+
         return;
       }
+
+      toast.error("Gagal menyimpan pesanan");
+
+      return;
+    }
 
       await supabase
         .from("meja")
