@@ -250,8 +250,15 @@ const KonfirmasiPesananPembeli = () => {
         return;
       }
 
-      if (namaPembeli.trim().length < 2) {
+      const cleanedNama = namaPembeli.trim();
+
+      if (cleanedNama.length < 2) {
         toast.error("Nama terlalu pendek");
+        return;
+      }
+
+      if (!/^[A-Za-z\s]+$/.test(cleanedNama)) {
+        toast.error("Nama hanya boleh huruf dan spasi");
         return;
       }
 
@@ -307,7 +314,7 @@ const KonfirmasiPesananPembeli = () => {
         await supabase
           .from("guest_customer")
           .update({
-            nama_pembeli: namaPembeli.trim(),
+            nama_pembeli: cleanedNama,
             last_order_at: new Date().toISOString()
           })
           .eq("id", existingGuest.id);
@@ -317,7 +324,7 @@ const KonfirmasiPesananPembeli = () => {
           .from("guest_customer")
           .insert({
             email: cleanedEmail,
-            nama_pembeli: namaPembeli.trim(),
+            nama_pembeli: cleanedNama,
             access_token: accessToken
           })
           .select()
@@ -335,7 +342,7 @@ const KonfirmasiPesananPembeli = () => {
       const payload = {
         guest_customer_id: guestCustomer.id,
         kode_pesanan: kodePesanan,
-        nama_pembeli: namaPembeli.trim(),
+        nama_pembeli: cleanedNama,
         email: cleanedEmail,
         meja_id: mejaData.id,
         metode_pembayaran: metodePembayaran,
@@ -413,7 +420,14 @@ const KonfirmasiPesananPembeli = () => {
               type="text"
               maxLength={30}
               value={namaPembeli}
-              onChange={(e) => setNamaPembeli(e.target.value)}
+                onChange={(e) =>
+                  setNamaPembeli(
+                    e.target.value
+                      .replace(/[^a-zA-Z\s]/g, "")
+                      .replace(/\s+/g, " ")
+                      .replace(/^\s/, "")
+                  )
+                }
               className="w-full h-[60px] rounded-2xl border border-gray-300 px-5 outline-none"
             />
           </div>
@@ -423,9 +437,16 @@ const KonfirmasiPesananPembeli = () => {
             <p className="font-bold text-[#002366] mb-2">Email</p>
             <input
               type="email"
+              required
+              autoComplete="email"
+              inputMode="email"
               maxLength={50}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value.replace(/\s/g, "")
+                )
+              }
               className="w-full h-[60px] rounded-2xl border border-gray-300 px-5 outline-none"
             />
           </div>

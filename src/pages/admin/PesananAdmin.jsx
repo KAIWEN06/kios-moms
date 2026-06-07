@@ -152,6 +152,19 @@ const PesananAdmin = ({
   };
 
   const handleProsesPesanan = async () => {
+
+    const cleanedNama = namaPemesan.trim();
+
+    if (cleanedNama.length < 2) {
+      toast.error("Nama pemesan terlalu pendek");
+      return;
+    }
+
+    if (!/^[A-Za-z\s]+$/.test(cleanedNama)) {
+      toast.error("Nama pemesan hanya boleh huruf dan spasi");
+      return;
+    }
+
     if (!namaPemesan || !meja || cartItems.length === 0) {
       toast.error('Lengkapi nama dan meja terlebih dahulu!');
       return;
@@ -208,7 +221,7 @@ const PesananAdmin = ({
             metode_pembayaran: payMethod,
             status: 'diproses',
             is_checkout: true,
-            nama_pembeli: namaPemesan,
+            nama_pembeli: cleanedNama,
             items: itemsData
           }
         ]);
@@ -378,13 +391,21 @@ const PesananAdmin = ({
                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">
                     Nama Pemesan
                   </label>
-                  <input
-                    type="text"
-                    value={namaPemesan}
-                    onChange={(e) => setNamaPemesan(e.target.value)}
-                    placeholder="Masukkan nama pemesan"
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 focus:border-[#FF8C00] rounded-xl font-bold text-sm text-[#002366] outline-none transition-all placeholder-slate-400 min-h-[44px]"
-                  />
+                    <input
+                      type="text"
+                      maxLength={30}
+                      value={namaPemesan}
+                      onChange={(e) =>
+                        setNamaPemesan(
+                          e.target.value
+                            .replace(/[^a-zA-Z\s]/g, '')
+                            .replace(/\s+/g, ' ')
+                            .replace(/^\s/, '')
+                        )
+                      }
+                      placeholder="Masukkan nama pemesan"
+                      className="w-full p-3.5 bg-slate-50 border border-slate-200 focus:border-[#FF8C00] rounded-xl font-bold text-sm text-[#002366] outline-none transition-all placeholder-slate-400 min-h-[44px]"
+                    />
                 </div>
 
                 <div>

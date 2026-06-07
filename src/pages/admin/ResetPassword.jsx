@@ -133,6 +133,9 @@ const [
 
       e.preventDefault();
 
+      const cleanedPassword = password.trim();
+      const cleanedConfirmPassword = confirmPassword.trim();
+
       // CEGAH SPAM
       if (loading || cooldown) {
 
@@ -144,10 +147,7 @@ const [
       }
 
       // VALIDASI FIELD
-      if (
-        !password ||
-        !confirmPassword
-      ) {
+      if (!cleanedPassword || !cleanedConfirmPassword) {
 
         toast.error(
           'Semua kolom wajib diisi!'
@@ -157,7 +157,7 @@ const [
       }
 
       // MINIMAL 8 KARAKTER
-      if (password.length < 8) {
+      if (cleanedPassword.length < 8) {
 
         toast.error(
           'Kata sandi minimal 8 karakter!'
@@ -167,7 +167,7 @@ const [
       }
 
       // HURUF BESAR
-      if (!/[A-Z]/.test(password)) {
+      if (!/[A-Z]/.test(cleanedPassword)) {
 
         toast.error(
           'Kata sandi harus memiliki huruf besar!'
@@ -177,7 +177,7 @@ const [
       }
 
       // HURUF KECIL
-      if (!/[a-z]/.test(password)) {
+      if (!/[a-z]/.test(cleanedPassword)) {
 
         toast.error(
           'Kata sandi harus memiliki huruf kecil!'
@@ -187,7 +187,7 @@ const [
       }
 
       // ANGKA
-      if (!/[0-9]/.test(password)) {
+      if (!/[0-9]/.test(cleanedPassword)) {
 
         toast.error(
           'Kata sandi harus memiliki angka!'
@@ -197,7 +197,7 @@ const [
       }
 
       // SIMBOL
-      if (!/[^A-Za-z0-9]/.test(password)) {
+      if (!/[^A-Za-z0-9]/.test(cleanedPassword)) {
 
         toast.error(
           'Kata sandi harus memiliki simbol!'
@@ -207,7 +207,7 @@ const [
       }
 
       // KONFIRMASI PASSWORD
-      if (password !== confirmPassword) {
+      if (cleanedPassword !== cleanedConfirmPassword) {
 
         toast.error(
           'Konfirmasi kata sandi tidak cocok!'
@@ -221,12 +221,9 @@ const [
       try {
 
         const { error } =
-          await supabase.auth
-            .updateUser({
-
-              password,
-
-            });
+        await supabase.auth.updateUser({
+          password: cleanedPassword,
+        });
 
         console.log(
           'UPDATE PASSWORD RESPONSE:',
@@ -336,6 +333,7 @@ const [
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3">
 
               <input
+                maxLength={100}
                 autoComplete="new-password"
                 type={
                   showPassword
@@ -440,6 +438,7 @@ const [
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3">
 
               <input
+                maxLength={100}
                 autoComplete="new-password"
                 type={
                   showConfirmPassword

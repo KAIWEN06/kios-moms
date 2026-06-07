@@ -129,10 +129,13 @@ const LoginAdmin = () => {
 
       e.preventDefault();
 
+      const cleanedEmail =
+      email.trim().toLowerCase();
+
       if (loading) return;
 
       // VALIDASI KOSONG
-      if (!email || !password) {
+      if (!cleanedEmail || !password) {
 
         toast.error(
           'Semua kolom wajib diisi!'
@@ -146,7 +149,7 @@ const LoginAdmin = () => {
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (
-        !emailRegex.test(email)
+        !emailRegex.test(cleanedEmail)
       ) {
 
         toast.error(
@@ -163,10 +166,8 @@ const LoginAdmin = () => {
         const { error } =
           await supabase.auth
             .signInWithPassword({
-
-              email,
+              email: cleanedEmail,
               password,
-
             });
 
         if (error) {
@@ -238,14 +239,27 @@ const LoginAdmin = () => {
         return;
       }
 
+      const cleanedEmail =
+       email.trim().toLowerCase();
+
       setLoading(true);
+
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(cleanedEmail)) {
+        toast.error(
+          'Format email tidak valid!'
+        );
+        return;
+      }
 
       try {
 
         const { error } =
           await supabase.auth
             .resetPasswordForEmail(
-              email,
+              cleanedEmail,
               {
                 redirectTo:
                   `${window.location.origin}/reset-password`
@@ -362,18 +376,19 @@ const LoginAdmin = () => {
 
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
 
-              <input
-                type="email"
-                autoComplete="off"
-                placeholder="Masukkan email"
-                value={email}
-                onChange={(e) =>
-                  setEmail(
-                    e.target.value
-                  )
-                }
-                className="bg-transparent outline-none w-full placeholder:text-white/50"
-              />
+            <input
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              placeholder="Masukkan email"
+              value={email}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value.replace(/\s/g, '')
+                )
+              }
+              className="bg-transparent outline-none w-full placeholder:text-white/50"
+            />
 
             </div>
 
@@ -391,7 +406,7 @@ const LoginAdmin = () => {
             <div className="flex items-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus-within:border-[#FF8C00] transition-all">
 
               <input
-                autoComplete="new-password"
+                autoComplete="current-password"
                 type={
                   showPassword
                     ? 'text'
