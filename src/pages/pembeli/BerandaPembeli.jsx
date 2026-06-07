@@ -262,7 +262,7 @@ setMenuTerlaris(finalMenu);
             </h1>
 
             <p className="text-gray-500 text-base sm:text-lg md:text-2xl mt-4 md:mt-8 max-w-[700px] leading-relaxed">
-              Pesan makanan favorit Anda dengan cepat, mudah, dan praktis langsung dari meja Anda.
+              Pesan makanan favorit Anda dengan cepat, mudah, dan praktis langsung dari perangkat Anda.
             </p>
 
             {/* ACTION BUTTONS */}

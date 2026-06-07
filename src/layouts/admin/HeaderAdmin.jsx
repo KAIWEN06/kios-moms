@@ -335,7 +335,7 @@ useEffect(() => {
               "
             >
 
-              Panel Administrator
+              Panel Admin
 
             </p>
 
@@ -600,7 +600,7 @@ useEffect(() => {
               "
             >
 
-              Panel Administrator
+              Panel Admin
 
             </p>
 

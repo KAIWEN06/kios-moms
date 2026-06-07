@@ -380,7 +380,7 @@ const fetchMenuTerlaris = async () => {
 
               <p className="text-slate-500 text-sm sm:text-base lg:text-lg leading-relaxed mt-4 sm:mt-6 max-w-xl mx-auto lg:mx-0">
                 Kelola status operasional kios, buat pesanan manual untuk pelanggan, 
-                serta pantau daftar menu terlaris secara real-time dari satu dashboard modern.
+                serta pantau daftar menu terlaris secara langsung dari satu dashboard modern.
               </p>
 
               {/* KIOS STATUS BADGE & BUTTONS AREA */}

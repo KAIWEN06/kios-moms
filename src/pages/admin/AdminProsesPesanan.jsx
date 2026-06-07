@@ -836,7 +836,7 @@ if (
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-[#002366] tracking-tight">Pesanan <span className="text-[#FF8C00]">Masuk</span></h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">Kelola meja secara langsung.</p>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">Kelola pesanan yang masuk.</p>
           </div>
           <div className="inline-flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-xs">
             <div className="w-2.5 h-2.5 bg-[#FF8C00] rounded-full animate-pulse" />
