@@ -932,7 +932,7 @@ const handleGantiMenu = async (pesananItem, menuRusak) => {
               Status <span className="text-[#FF8C00]">Pesanan</span>
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">
-              Pantau progress pesanan Anda, sesuaikan hidangan aktif, dan lacak status pesanan secara real-time.
+              Pantau progress pesanan Anda, sesuaikan hidangan aktif, dan lacak status pesanan secara langsung.
             </p>
           </div>
           <div className="inline-flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200/80 shadow-xs self-start md:self-auto">

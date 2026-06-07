@@ -117,8 +117,8 @@ const itemsHtml =
     )
     .join("");
 
-      const baseUrl =
-  'https://kios-moms.vercel.app';
+const baseUrl =
+  'https://www.kiosmoms.store';
 
 const statusUrl =
   `${baseUrl}/status-pesanan?token=${access_token}`;
@@ -308,20 +308,23 @@ const riwayatUrl =
        SEND EMAIL
     ========================================= */
 
-    const data =
-      await resend.emails.send({
+const data =
+  await resend.emails.send({
 
-        from:
-          'Kios Moms <onboarding@resend.dev>',
+    from:
+      'Kios Moms <pesanan@kiosmoms.store>',
 
-        to: email,
+    replyTo:
+      'pesanan@kiosmoms.store',
 
-        subject:
-          `Pesanan ${kode_pesanan} Berhasil`,
+    to: email,
 
-        html,
+    subject:
+      `Pesanan ${kode_pesanan} Berhasil`,
 
-      })
+    html,
+
+  })
 
     return new Response(
       JSON.stringify(data),

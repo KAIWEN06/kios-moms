@@ -279,12 +279,12 @@ const KeranjangPembeli = () => {
       <div className="w-full px-4 sm:px-6 md:px-10 xl:px-16 py-6 md:py-10 max-w-[1440px] mx-auto">
         
         {/* ROW JUDUL */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h1 className="text-4xl md:text-6xl font-black text-[#002366]">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-[#002366]">
               Keranjang <span className="text-[#FF8C00]">Saya</span>
             </h1>
-            <p className="text-gray-500 mt-2 text-sm sm:text-base">
+            <p className="text-gray-500 mt-1 md:mt-2 text-xs sm:text-base">
               Manajemen item pesanan pilihan Anda sebelum checkout.
             </p>
           </div>
@@ -292,12 +292,12 @@ const KeranjangPembeli = () => {
             onClick={() => navigate("/daftar-menu")}
             className="hidden sm:block font-black text-sm text-[#002366] bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-xs hover:bg-gray-50 transition-all cursor-pointer"
           >
-          Tambah Menu Lain
+            Tambah Menu Lain
           </button>
         </div>
 
         {/* CONTAINER UTAMA GRID */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start mt-4">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8 items-start mt-4">
           
           {/* SISI KIRI: DAFTAR ITEM PESANAN */}
           <div className="xl:col-span-2 space-y-4 w-full">
@@ -322,11 +322,12 @@ const KeranjangPembeli = () => {
                 return (
                   <div
                     key={item.cartKey || `${item.id}-${item.varian}`}
-                    className="bg-white rounded-[24px] md:rounded-[30px] p-4 sm:p-5 flex gap-4 items-center justify-between shadow-xs w-full relative"
+                    className="bg-white rounded-[24px] md:rounded-[30px] p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between shadow-xs w-full relative"
                   >
                     {/* GAMBAR DAN DETIL NAMA */}
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-gray-100 shrink-0">
+                    <div className="flex items-start sm:items-center gap-4 flex-1 min-w-0">
+                      {/* UKURAN GAMBAR OPTIMAL PADA HP DAN DESKTOP */}
+                      <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden bg-gray-100 shrink-0">
                         <img
                           src={item.gambar || "https://placehold.co/150"}
                           alt={item.nama}
@@ -334,15 +335,16 @@ const KeranjangPembeli = () => {
                         />
                       </div>
                       
+                      {/* INFO PRODUK */}
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-lg sm:text-xl font-black text-[#002366] line-clamp-1 capitalize">
+                        <h3 className="text-base sm:text-xl font-black text-[#002366] line-clamp-2 capitalize leading-snug">
                           {item.nama}
                         </h3>
                         
                         {/* BADGE VARIAN */}
                         {Number(item.harga_extra) > 0 && (
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`px-2.5 py-0.5 text-[10px] uppercase font-black tracking-wider rounded-md ${
+                            <span className={`px-2 py-0.5 text-[9px] sm:text-[10px] uppercase font-black tracking-wider rounded-md ${
                               item.varian === "extra"
                                 ? "bg-red-50 text-red-600 border border-red-200"
                                 : "bg-blue-50 text-[#002366] border border-blue-100"
@@ -352,14 +354,17 @@ const KeranjangPembeli = () => {
                           </div>
                         )}
 
-                        <h4 className={`text-base sm:text-lg font-black mt-2 ${item.varian === "extra" ? "text-red-500" : "text-[#FF8C00]"}`}>
+                        <h4 className={`text-sm sm:text-lg font-black mt-1 sm:mt-2 ${item.varian === "extra" ? "text-red-500" : "text-[#FF8C00]"}`}>
                           Rp {Number(item.harga).toLocaleString("id-ID")}
                         </h4>
                       </div>
                     </div>
 
+                    {/* SEPARATOR GARIS TIPIS HANYA DI LAYAR HP */}
+                    <div className="block sm:hidden border-t border-gray-100 my-1"></div>
+
                     {/* KONTROL QUANTITY DAN TOMBOL HAPUS */}
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 shrink-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                       
                       {/* PENGATUR JUMLAH BARIS */}
                       <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-1 rounded-xl sm:rounded-2xl">
@@ -369,7 +374,7 @@ const KeranjangPembeli = () => {
                         >
                           -
                         </button>
-                        <span className="text-base sm:text-lg font-black text-[#002366] min-w-[20px] text-center tabular-nums">
+                        <span className="text-sm sm:text-lg font-black text-[#002366] min-w-[24px] text-center tabular-nums">
                           {item.qty}
                         </span>
                         <button
@@ -383,7 +388,7 @@ const KeranjangPembeli = () => {
                       {/* TOMBOL SAMPAH (HAPUS) */}
                       <button
                         onClick={() => hapusItem(item.cartKey, item.nama, item.varian, item.harga_extra)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer bg-gray-50 sm:bg-transparent rounded-xl"
                         title="Hapus menu"
                       >
                         <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -400,8 +405,8 @@ const KeranjangPembeli = () => {
 
           {/* SISI KANAN: RINGKASAN PEMBAYARAN */}
           {keranjang.length > 0 && (
-            <div className="bg-white rounded-[24px] md:rounded-[35px] p-6 shadow-sm border border-gray-100 w-full space-y-5 sticky top-6">
-              <h3 className="text-xl font-black text-[#002366] border-b pb-3 border-gray-100">
+            <div className="bg-white rounded-[24px] md:rounded-[35px] p-5 md:p-6 shadow-sm border border-gray-100 w-full space-y-5 sticky top-6">
+              <h3 className="text-lg md:text-xl font-black text-[#002366] border-b pb-3 border-gray-100">
                 Ringkasan Pesanan
               </h3>
 
@@ -412,8 +417,8 @@ const KeranjangPembeli = () => {
                 </div>
 
                 <div className="border-t border-dashed border-gray-100 pt-3 flex justify-between items-center">
-                  <span className="text-base font-black text-[#002366]">Subtotal</span>
-                  <span className="text-2xl font-black text-[#FF8C00] tabular-nums">
+                  <span className="text-sm sm:text-base font-black text-[#002366]">Subtotal</span>
+                  <span className="text-xl sm:text-2xl font-black text-[#FF8C00] tabular-nums">
                     Rp {totalHarga.toLocaleString("id-ID")}
                   </span>
                 </div>
@@ -422,7 +427,7 @@ const KeranjangPembeli = () => {
               <button
                 disabled={!kiosBuka}
                 onClick={handleLanjut}
-                className={`w-full py-4 rounded-2xl font-black text-white text-base transition-all shadow-sm active:scale-95 text-center cursor-pointer block ${
+                className={`w-full py-3.5 sm:py-4 rounded-2xl font-black text-white text-sm sm:text-base transition-all shadow-sm active:scale-95 text-center cursor-pointer block ${
                   kiosBuka ? "bg-[#FF8C00] hover:bg-orange-600" : "bg-gray-400 cursor-not-allowed"
                 }`}
               >
@@ -431,7 +436,7 @@ const KeranjangPembeli = () => {
 
               <button
                 onClick={() => navigate("/daftar-menu")}
-                className="w-full text-center text-sm font-bold text-gray-400 hover:text-[#002366] transition-colors py-1 block cursor-pointer"
+                className="w-full text-center text-xs sm:text-sm font-bold text-gray-400 hover:text-[#002366] transition-colors py-1 block cursor-pointer"
               >
                 Kembali Belanja
               </button>

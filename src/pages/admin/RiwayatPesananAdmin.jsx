@@ -213,21 +213,21 @@ const maxVisiblePages =
   }
 
   return (
-    <div className="py-[40px] px-[5%] max-w-5xl mx-auto">
+    <div className="py-[30px] md:py-[40px] px-[4%] md:px-[5%] max-w-5xl mx-auto Box-sizing">
       {/* TITLE */}
-      <h2 className="text-center mb-[30px] text-2xl md:text-3xl font-bold text-[#333]">
+      <h2 className="text-center mb-[20px] md:mb-[30px] text-xl md:text-3xl font-bold text-[#333]">
         Riwayat <span className="text-[#FF8C00]">Selesai</span>
       </h2>
 
       {/* FILTER */}
-      <div className="flex flex-col md:flex-row gap-4 mb-[25px] items-start">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-[20px] md:mb-[25px] items-stretch md:items-start">
         {/* SEARCH KODE */}
         <input
           type="text"
           placeholder="Cari kode pesanan..."
           value={searchKode}
           onChange={(e) => setSearchKode(e.target.value)}
-          className="flex-1 p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+          className="flex-1 p-3 md:p-4 text-sm md:text-base rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white w-full"
         />
 
         {/* FILTER DATE */}
@@ -247,7 +247,7 @@ const maxVisiblePages =
             // Kita cabut minDate & maxDate bawaan agar kalender tidak nge-bug/stuck saat data loading selesai
             filterDate={isDateAvailable}
             
-            className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white"
+            className="w-full p-3 md:p-4 text-sm md:text-base rounded-2xl border border-gray-200 outline-none focus:border-[#FF8C00] bg-white text-left"
             
             renderCustomHeader={({
               date,
@@ -341,7 +341,7 @@ const maxVisiblePages =
                     </select>
                   </div>
 
-                  {/* Tombol ke bulan selanjutnya (Ini akan membuka gembok Juni 2026 Anda) */}
+                  {/* Tombol ke bulan selanjutnya */}
                   <button
                     type="button"
                     disabled={!hasNext}
@@ -369,159 +369,153 @@ const maxVisiblePages =
           <p className="text-gray-400 italic">Belum ada riwayat pesanan.</p>
         </div>
       ) : (
-        paginatedOrders.map((o, idx) => {
-          const parsedItems = parseItems(o.items);
-          return (
-            <div
-              key={o.id}
-              className="bg-white mb-[10px] rounded-[10px] overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-            >
+        <div className="space-y-3">
+          {paginatedOrders.map((o, idx) => {
+            const parsedItems = parseItems(o.items);
+            return (
               <div
-                className="p-[15px] flex justify-between items-center cursor-pointer bg-[#fafafa] hover:bg-gray-100 transition-colors"
-                onClick={() => toggleDetail(idx)}
+                key={o.id}
+                className="bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100"
               >
-                <div className="flex flex-col">
-                  <span className="text-gray-800">
-                    <b className="font-bold">Meja {o.meja_id}</b>
-                    <span className="mx-1 text-gray-400">|</span>
-                    {new Date(o.created_at).toLocaleString('id-ID')}
-                  </span>
-                  <span className="text-[12px] text-[#FF8C00] font-black tracking-wide mt-1">
-                    {o.kode_pesanan || 'KODE TIDAK TERSEDIA'}
-                  </span>
-                </div>
-
-                <span className="font-semibold text-gray-900 flex items-center gap-2">
-                  Rp {Number(o.total_harga || 0).toLocaleString()}
-                  <span
-                    className={`transition-transform duration-300 ${
-                      openIndex === idx ? 'rotate-180' : ''
-                    }`}
-                  >
-                    ▾
-                  </span>
-                </span>
-              </div>
-
-              <div
-                className={`overflow-hidden transition-all duration-500 ease-in-out ${
-                  openIndex === idx ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                }`}
-              >
-                <div className="p-[15px] border-t border-[#eee] bg-white">
-                  <ul className="list-disc list-inside space-y-2 text-gray-600">
-                    {parsedItems.length > 0 ? (
-                      parsedItems.map((i, iIdx) => (
-                        <li key={`${i.nama}-${iIdx}`} className="text-sm">
-                          <span className="font-semibold text-gray-800">
-                            {i.nama}
-                          </span>
-
-                          {Number(i.harga_extra || 0) > 0 && (
-                            <span className="ml-2 text-gray-500">
-                              {' '}
-                              (
-                              {String(i.varian).toLowerCase() === 'extra'
-                                ? 'Extra'
-                                : 'Biasa'}
-                              )
-                            </span>
-                          )}
-
-                          {' '}x {i.qty}
-
-                          <span className="ml-2 text-gray-500">
-                            - Rp {(Number(i.harga || 0) * Number(i.qty || 0)).toLocaleString('id-ID')}
-                          </span>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-sm text-gray-400 italic list-none">
-                        Detail item tidak tersedia
-                      </li>
-                    )}
-                  </ul>
-
-                  <div className="mt-[15px] flex justify-between items-center">
-                    <span className="text-sm text-gray-500 font-semibold">
-                      Metode Pembayaran
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
-                        o.metode_pembayaran === 'QRIS' ? 'bg-blue-500' : 'bg-green-500'
-                      }`}
-                    >
-                      {o.metode_pembayaran}
+                {/* Header Card (Dioptimasi untuk Mobile) */}
+                <div
+                  className="p-4 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 cursor-pointer bg-[#fafafa] hover:bg-gray-100 transition-colors"
+                  onClick={() => toggleDetail(idx)}
+                >
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center flex-wrap gap-x-2 text-sm md:text-base text-gray-800">
+                      <b className="font-bold text-gray-900">Meja {o.meja_id}</b>
+                      <span className="text-gray-300 hidden sm:inline">|</span>
+                      <span className="text-gray-500 text-xs md:text-sm">
+                        {new Date(o.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                    </div>
+                    <span className="text-[11px] md:text-[12px] text-[#FF8C00] font-bold tracking-wider truncate">
+                      {o.kode_pesanan || 'KODE TIDAK TERSEDIA'}
                     </span>
                   </div>
-                  <p className="mt-[15px] font-bold text-green-600 tracking-wide text-sm">
-                    STATUS: SELESAI
-                  </p>
+
+                  {/* Bagian Harga & Panah */}
+                  <div className="flex justify-between sm:justify-end items-center gap-3 border-t sm:border-none pt-2 sm:pt-0 border-gray-100">
+                    <span className="text-xs text-gray-400 block sm:hidden">Total Bayar:</span>
+                    <span className="font-bold text-sm md:text-base text-gray-900 flex items-center gap-2">
+                      Rp {Number(o.total_harga || 0).toLocaleString('id-ID')}
+                      <span
+                        className={`text-gray-400 transition-transform duration-300 ${
+                          openIndex === idx ? 'rotate-180' : ''
+                        }`}
+                      >
+                        ▾
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Detail Card */}
+                <div
+                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                    openIndex === idx ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="p-4 md:p-5 border-t border-gray-100 bg-white">
+                    <ul className="divide-y divide-gray-50 space-y-2 text-gray-600">
+                      {parsedItems.length > 0 ? (
+                        parsedItems.map((i, iIdx) => (
+                          <li key={`${i.nama}-${iIdx}`} className="pt-2 first:pt-0 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs md:text-sm">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="font-medium text-gray-800">
+                                {i.nama}
+                              </span>
+                              {Number(i.harga_extra || 0) > 0 && (
+                                <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 rounded text-gray-500 font-medium">
+                                  {String(i.varian).toLowerCase() === 'extra' ? 'Extra' : 'Biasa'}
+                                </span>
+                              )}
+                              <span className="text-gray-400 font-normal ml-1">
+                                x{i.qty}
+                              </span>
+                            </div>
+                            <span className="text-gray-500 font-mono text-left sm:text-right">
+                              Rp {(Number(i.harga || 0) * Number(i.qty || 0)).toLocaleString('id-ID')}
+                            </span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-sm text-gray-400 italic list-none py-2">
+                          Detail item tidak tersedia
+                        </li>
+                      )}
+                    </ul>
+
+                    {/* Metadata Pembayaran */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                      <div className="flex justify-between items-center text-xs md:text-sm">
+                        <span className="text-gray-500 font-medium">
+                          Metode Pembayaran
+                        </span>
+                        <span
+                          className={`px-2.5 py-1 rounded-lg text-white text-[11px] font-bold tracking-wide ${
+                            o.metode_pembayaran === 'QRIS' ? 'bg-blue-600' : 'bg-green-600'
+                          }`}
+                        >
+                          {o.metode_pembayaran}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs md:text-sm">
+                        <span className="text-gray-500 font-medium">Status</span>
+                        <span className="font-bold text-green-600 tracking-wider text-[11px] md:text-xs bg-green-50 px-2 py-1 rounded-md">
+                          STATUS: SELESAI
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
 
+      {/* PAGINATION */}
       {totalPages > 1 && (
-  <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
+        <div className="flex justify-center items-center gap-1.5 md:gap-2 mt-6 flex-wrap">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-2 text-sm rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-40 transition-colors"
+          >
+            ←
+          </button>
 
-    <button
-      onClick={() =>
-        setCurrentPage((p) =>
-          Math.max(1, p - 1)
-        )
-      }
-      disabled={currentPage === 1}
-      className="px-4 py-2 rounded-xl bg-gray-200 disabled:opacity-40"
-    >
-      ←
-    </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((page) => {
+              const half = Math.floor(maxVisiblePages / 2);
+              return page >= currentPage - half && page <= currentPage + half;
+            })
+            .map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-9 h-9 text-sm rounded-xl font-bold transition-all ${
+                  currentPage === page
+                    ? "bg-[#FF8C00] text-white shadow-md shadow-orange-500/20"
+                    : "bg-white border text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
 
-    {Array.from(
-      { length: totalPages },
-      (_, i) => i + 1
-    )
-      .filter((page) => {
-        const half =
-          Math.floor(maxVisiblePages / 2);
-
-        return (
-          page >= currentPage - half &&
-          page <= currentPage + half
-        );
-      })
-      .map((page) => (
-        <button
-          key={page}
-          onClick={() =>
-            setCurrentPage(page)
-          }
-          className={`w-10 h-10 rounded-xl font-bold ${
-            currentPage === page
-              ? "bg-[#FF8C00] text-white"
-              : "bg-white border"
-          }`}
-        >
-          {page}
-        </button>
-      ))}
-
-    <button
-      onClick={() =>
-        setCurrentPage((p) =>
-          Math.min(totalPages, p + 1)
-        )
-      }
-      disabled={currentPage === totalPages}
-      className="px-4 py-2 rounded-xl bg-gray-200 disabled:opacity-40"
-    >
-      →
-    </button>
-
-  </div>
-)}
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 text-sm rounded-xl bg-gray-100 hover:bg-gray-200 disabled:opacity-40 transition-colors"
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 };

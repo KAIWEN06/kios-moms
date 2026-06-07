@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, {
+  useState,
+  useEffect
+} from 'react';
 
 import toast from 'react-hot-toast';
+
 
 import {
   NavLink,
   useNavigate,
+  useLocation
 } from 'react-router-dom';
 
 import {
@@ -15,6 +20,46 @@ const HeaderAdmin = () => {
 
   const navigate = useNavigate();
 
+  const location =
+  useLocation();
+
+  const [unreadCount, setUnreadCount] =
+  useState(0);
+
+const loadUnreadCount =
+  async () => {
+
+    const {
+      count,
+      error
+    } = await supabase
+      .from("pesanan")
+      .select("*", {
+        count: "exact",
+        head: true
+      })
+      .eq(
+        "dilihat_admin",
+        false
+      )
+      .in(
+        "status",
+        [
+          "menunggu_pembayaran",
+          "diproses"
+        ]
+      );
+
+    if (!error) {
+
+      setUnreadCount(
+        count || 0
+      );
+
+    }
+
+  };
+  
   const [openMenu, setOpenMenu] =
     useState(false);
 
@@ -89,9 +134,137 @@ const HeaderAdmin = () => {
 
   ];
 
+  useEffect(() => {
+
+  loadUnreadCount();
+
+}, []);
+
+useEffect(() => {
+
+  loadUnreadCount();
+
+  const channel = supabase
+    .channel("header-notification")
+
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "pesanan"
+        },
+        async (payload) => {
+
+          if (
+            payload.new.status !==
+            "menunggu_pembayaran"
+          ) {
+            return;
+          }
+
+          if (
+            payload.new.dilihat_admin
+          ) {
+            return;
+          }
+
+        await loadUnreadCount();
+
+        if (
+          location.pathname ===
+          "/admin/proses-pesanan"
+        ) {
+          return;
+        }
+
+        toast.dismiss();
+
+        toast((t) => (
+
+            <div className="flex flex-col gap-2">
+
+              <span>
+                Pesanan baru masuk
+              </span>
+
+              <span className="text-sm text-gray-500">
+                Meja {payload.new.meja_id}
+              </span>
+
+              <button
+                onClick={async () => {
+
+                  await supabase
+                    .from("pesanan")
+                    .update({
+                      dilihat_admin: true
+                    })
+                    .eq(
+                      "dilihat_admin",
+                      false
+                    );
+
+                  navigate(
+                    "/admin/proses-pesanan"
+                  );
+
+                  toast.dismiss(
+                    t.id
+                  );
+
+                }}
+                className="
+                bg-blue-600
+                text-white
+                px-3
+                py-1
+                rounded
+                "
+              >
+
+                Lihat
+
+              </button>
+
+            </div>
+
+          ));
+
+        }
+      )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "pesanan"
+      },
+      () => {
+
+        loadUnreadCount();
+
+      }
+    )
+
+    .subscribe();
+
+  return () => {
+
+    supabase.removeChannel(
+      channel
+    );
+
+  };
+
+}, []);
+
   return (
 
     <>
+
+    
       {/* ========================= */}
       {/* HEADER */}
       {/* ========================= */}
@@ -221,7 +394,39 @@ const HeaderAdmin = () => {
                         }
                       >
 
-                        {item.nama}
+                        <div className="flex items-center gap-2">
+
+                        <span>
+                          {item.nama}
+                        </span>
+
+                        {item.path ===
+                          "/admin/proses-pesanan" &&
+                          unreadCount > 0 && (
+
+                          <span
+                            className="
+                            bg-red-500
+                            text-white
+                            rounded-full
+                            min-w-[20px]
+                            h-5
+                            px-1
+                            text-[10px]
+                            flex
+                            items-center
+                            justify-center
+                            font-bold
+                            "
+                          >
+
+                            {unreadCount}
+
+                          </span>
+
+                        )}
+
+                      </div>
 
                       </NavLink>
 
@@ -260,29 +465,62 @@ const HeaderAdmin = () => {
           {/* HAMBURGER */}
           {/* ========================= */}
 
-          <button
-            onClick={() =>
-              setOpenMenu(!openMenu)
-            }
-            className="
-            xl:hidden
-            w-14
-            h-14
-            rounded-2xl
-            bg-[#FF8C00]
-            text-white
-            text-3xl
-            font-black
-            hover:scale-105
-            transition-all
-            duration-300
-            shadow-lg
-            "
-          >
+<div className="relative">
 
-            {openMenu ? '✕' : '☰'}
+  <button
+    onClick={() =>
+      setOpenMenu(!openMenu)
+    }
+    className="
+    xl:hidden
+    w-14
+    h-14
+    rounded-2xl
+    bg-[#FF8C00]
+    text-white
+    text-3xl
+    font-black
+    hover:scale-105
+    transition-all
+    duration-300
+    shadow-lg
+    "
+  >
 
-          </button>
+    {openMenu ? '✕' : '☰'}
+
+  </button>
+
+  {unreadCount > 0 && (
+
+    <span
+      className="
+      xl:hidden
+      absolute
+      -top-1
+      -right-1
+      min-w-[22px]
+      h-[22px]
+      px-1
+      rounded-full
+      bg-red-500
+      text-white
+      text-[10px]
+      font-bold
+      flex
+      items-center
+      justify-center
+      shadow-md
+      "
+    >
+
+      {unreadCount}
+
+    </span>
+
+  )}
+
+</div>
 
         </div>
 
@@ -422,7 +660,39 @@ const HeaderAdmin = () => {
                   }
                 >
 
-                  {item.nama}
+                  <div className="flex items-center justify-between w-full">
+
+                    <span>
+                      {item.nama}
+                    </span>
+
+                    {item.path ===
+                      "/admin/proses-pesanan" &&
+                      unreadCount > 0 && (
+
+                      <span
+                        className="
+                        bg-red-500
+                        text-white
+                        rounded-full
+                        min-w-[22px]
+                        h-6
+                        px-2
+                        text-xs
+                        flex
+                        items-center
+                        justify-center
+                        font-bold
+                        "
+                      >
+
+                        {unreadCount}
+
+                      </span>
+
+                    )}
+
+                  </div>
 
                 </NavLink>
 
