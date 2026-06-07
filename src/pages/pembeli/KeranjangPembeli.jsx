@@ -87,7 +87,7 @@ const KeranjangPembeli = () => {
       localStorage.removeItem("keranjang");
       setKeranjang([]);
       toast.error("Kios ditutup. Keranjang Anda dikosongkan.");
-      navigate("/beranda");
+      navigate("");
     }
   }, [kiosBuka, navigate]);
 

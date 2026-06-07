@@ -58,7 +58,7 @@ const KonfirmasiPesananPembeli = () => {
       localStorage.removeItem("keranjang");
       setCart([]);
       toast.error("Maaf, kios baru saja ditutup oleh admin.");
-      navigate("/beranda");
+      navigate("/");
     }
   }, [kiosBuka, navigate]);
 
@@ -74,7 +74,7 @@ const KonfirmasiPesananPembeli = () => {
         setKiosBuka(data.buka);
         if (!data.buka) {
           toast.error("Kios sedang tutup");
-          navigate("/beranda");
+          navigate("/");
         }
       }
     } catch (e) {
@@ -236,7 +236,7 @@ const KonfirmasiPesananPembeli = () => {
       if (!kiosData?.buka) {
         toast.error("Kios sedang tutup. Tidak dapat melakukan pesanan.");
         localStorage.removeItem("keranjang");
-        navigate("/beranda");
+        navigate("/");
         return;
       }
 
