@@ -61,47 +61,59 @@ const {
        FORMAT ITEMS
     ========================================= */
 
-    const itemsHtml =
+const itemsHtml =
   items
     ?.map(
-      (item) => `
-      <tr>
+      (item) => {
 
-        <td
-          style="
-            padding:12px;
-            text-align:left;
-            width:60%;
-          "
-        >
-          ${item.nama}
-        </td>
+        const namaMenu =
+          Number(item.harga_extra || 0) > 0
+            ? `${item.nama} (${
+                item.varian === "extra"
+                  ? "Extra"
+                  : "Biasa"
+              })`
+            : item.nama;
 
-        <td
-          style="
-            padding:12px;
-            text-align:center;
-            width:15%;
-          "
-        >
-          ${item.qty}x
-        </td>
+        return `
+          <tr>
 
-        <td
-          style="
-            padding:12px;
-            text-align:right;
-            width:25%;
-          "
-        >
-          Rp ${(
-            Number(item.harga) *
-            Number(item.qty)
-          ).toLocaleString('id-ID')}
-        </td>
+            <td
+              style="
+                padding:12px;
+                text-align:left;
+                width:60%;
+              "
+            >
+              ${namaMenu}
+            </td>
 
-      </tr>
-    `
+            <td
+              style="
+                padding:12px;
+                text-align:center;
+                width:15%;
+              "
+            >
+              ${item.qty}x
+            </td>
+
+            <td
+              style="
+                padding:12px;
+                text-align:right;
+                width:25%;
+              "
+            >
+              Rp ${(
+                Number(item.harga) *
+                Number(item.qty)
+              ).toLocaleString('id-ID')}
+            </td>
+
+          </tr>
+        `;
+      }
     )
     .join("");
 
