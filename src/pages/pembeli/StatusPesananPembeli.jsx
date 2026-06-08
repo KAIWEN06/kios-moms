@@ -1012,7 +1012,7 @@ const handleGantiMenu = async (pesananItem, menuRusak) => {
                   <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <span className="text-[11px] font-black text-slate-400 font-mono">{item.kode_pesanan}</span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${item.status === "menunggu_pembayaran" ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-amber-50 text-amber-600 border-amber-100"}`}>
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${item.status === "menunggu_pembayaran" ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-amber-50 text-amber-600 border-amber-100"}`}>
                         {item.status === "menunggu_pembayaran" ? "Menunggu Pembayaran" : "Diproses Dapur"}
                       </span>
                     </div>
