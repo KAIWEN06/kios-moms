@@ -381,7 +381,7 @@ const KelolaMenuAdmin = ({ menu, fetchMenu, updateStokMenu }) => {
                     <img src={m.img} alt={m.nama} className={`w-full h-40 sm:h-32 object-cover rounded-xl sm:rounded-2xl mb-3 ${m.stok === 'kosong' ? 'grayscale opacity-60' : ''}`} />
                     {totalTerjualBulanIni > 0 && (
                       <span className="absolute top-2 left-2 bg-[#FF8C00] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                        🔥 {totalTerjualBulanIni} Terjual
+                        {totalTerjualBulanIni} Terjual
                       </span>
                     )}
                   </div>

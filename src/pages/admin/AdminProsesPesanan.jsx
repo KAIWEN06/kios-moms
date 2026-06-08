@@ -723,8 +723,45 @@ if (
                           
                           {hasExtra && (
                             <div className="flex gap-2 mt-3">
-                              <button type="button" onClick={() => setSelectedVariants(prev => ({ ...prev, [menu.id]: "biasa" }))} className={`flex-1 py-2 rounded-lg text-xs font-bold ${currentVariant === "biasa" ? "bg-[#002366] text-white" : "bg-slate-100 text-slate-700"}`}>Biasa {menu.stok === "extra_ada" && "❌"}</button>
-                              <button type="button" onClick={() => setSelectedVariants(prev => ({ ...prev, [menu.id]: "extra" }))} className={`flex-1 py-2 rounded-lg text-xs font-bold ${currentVariant === "extra" ? "bg-red-500 text-white" : "bg-slate-100 text-slate-700"}`}>Extra {menu.stok === "biasa_ada" && "❌"}</button>
+                              <button
+                                type="button"
+                                disabled={menu.stok === "extra_ada"}
+                                onClick={() =>
+                                  setSelectedVariants(prev => ({
+                                    ...prev,
+                                    [menu.id]: "biasa"
+                                  }))
+                                }
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold ${
+                                  menu.stok === "extra_ada"
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                    : currentVariant === "biasa"
+                                    ? "bg-[#002366] text-white"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                Biasa
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={menu.stok === "biasa_ada"}
+                                onClick={() =>
+                                  setSelectedVariants(prev => ({
+                                    ...prev,
+                                    [menu.id]: "extra"
+                                  }))
+                                }
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold ${
+                                  menu.stok === "biasa_ada"
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                    : currentVariant === "extra"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                Extra
+                              </button>
                             </div>
                           )}
 
