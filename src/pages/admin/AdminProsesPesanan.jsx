@@ -674,7 +674,16 @@ if (
               <button
                 onClick={eksekusiAksi}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white ${
-                  ["batal", "hapus_menu", "hapus_overlay"].includes(modalConfig.type) ? "bg-rose-600 hover:bg-rose-700" : modalConfig.type === "bayar" ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-600 hover:bg-emerald-700"
+                  [
+                    "batal",
+                    "hapus_menu",
+                    "hapus_overlay",
+                    "batal_menu_terakhir"
+                  ].includes(modalConfig.type)
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : modalConfig.type === "bayar"
+                    ? "bg-amber-500 hover:bg-amber-600"
+                    : "bg-emerald-600 hover:bg-emerald-700"
                 }`}
               >
                 Ya, Lanjutkan
