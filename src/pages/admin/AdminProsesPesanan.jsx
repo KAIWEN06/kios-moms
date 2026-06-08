@@ -901,6 +901,16 @@ if (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             {filteredPesanan.map((item) => {
               const rawItems = item.items || [];
+
+              console.log(
+                "PESANAN",
+                item.kode_pesanan
+              );
+
+              console.log(
+                "ITEMS",
+                rawItems
+              );
               const menuAktif = rawItems.filter(
                 (menu) =>
                   !menu.menu_habis &&
@@ -951,8 +961,9 @@ if (
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase mb-2.5">Daftar Menu ({rawItems.length})</p>
                       <div className="space-y-2.5 min-h-[170px]">
-                        {visibleItems.map((prod, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50/60 rounded-xl border border-slate-100 text-xs font-semibold">
+                        {visibleItems.map((prod) => (
+                        <div
+                          key={`${prod.id}-${prod.varian || "default"}`} className="flex items-center justify-between p-2.5 bg-slate-50/60 rounded-xl border border-slate-100 text-xs font-semibold">
                             <div className="min-w-0 flex-1 pr-2">
                               <span className="text-slate-800 font-bold block truncate capitalize">
                                 {prod.nama}
