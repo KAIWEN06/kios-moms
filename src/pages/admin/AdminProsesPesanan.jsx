@@ -946,7 +946,7 @@ if (
                   <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <span className="text-[11px] font-black text-slate-400 font-mono">{item.kode_pesanan}</span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${item.status === "menunggu_pembayaran" ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-indigo-50 text-indigo-700 border-indigo-100"}`}>{item.status === "menunggu_pembayaran" ? "Belum Bayar" : "Diproses"}</span>
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${item.status === "menunggu_pembayaran" ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-indigo-50 text-indigo-700 border-indigo-100"}`}>{item.status === "menunggu_pembayaran" ? "Belum Bayar" : "Diproses"}</span>
                     </div>
                     <div className="flex items-start justify-between gap-2 mt-3">
                       <div>
