@@ -1018,6 +1018,7 @@ const handleGantiMenu = async (pesananItem, menuRusak) => {
                     </div>
                     <div className="flex items-start justify-between gap-2 mt-3">
                       <div>
+                        <p className="text-[10px] bg-rose-50 text-rose-600 border-rose-100">Silakan melakukan pembayaran di kasir</p>
                         <p className="text-[10px] font-black text-slate-400 uppercase">Waktu Pesan</p>
                         <h4 className="text-xs font-bold text-slate-500 mt-0.5">{new Date(item.created_at).toLocaleString("id-ID")}</h4>
                       </div>
